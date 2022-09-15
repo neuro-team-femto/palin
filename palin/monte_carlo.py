@@ -9,17 +9,17 @@ Functions for Monte Carlo method for estimating internal noise
 import pandas as pd
 
 def estimate_model(internal_noise_bounds, criteria_bounds): 
-"""This will estimate a model mapping input parameters to output parameters
-"""
+	'''This will estimate a model mapping input parameters to output parameters
+	'''
 
 	print('This will estimate a model mapping input parameters to output parameters')
 	model = pd.DataFrame()
 
 	return model
 
-def invert_model(prob_agreement, prob_interval_1): 
-"""This will find best input parameters for a given output pair
-"""
+def invert_model(model, prob_agreement, prob_interval_1): 
+	'''This will find best input parameters for a given output pair
+	'''
 
 	print('This will find best input parameters for a given output pair')
 	internal_noise = 0
