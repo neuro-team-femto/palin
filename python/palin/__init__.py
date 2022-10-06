@@ -1,3 +1,5 @@
-# Palin module
+# Palin package
 
-from palin.monte_carlo import *
+#from palin.utils import *
+#from palin.kernels import *
+#from palin.internal_noise import *
