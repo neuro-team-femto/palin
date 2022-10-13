@@ -1,3 +1,6 @@
 .ipynb_checkpoints
 palin_test.ipynb
-palin/__pycache__/
+palin/__pycache__
+palin/internal_noise/__pycache__
+palin/kernels/__pycache__
+palin/utils/__pycache__
