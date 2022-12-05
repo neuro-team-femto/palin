@@ -8,6 +8,8 @@ Functions for Monte Carlo method for estimating internal noise
 
 import pandas as pd
 import numpy as np
+from palin.utils import utils
+
 
 def estimate_model(internal_noise_bounds=[0,10,0.1],criteria_bounds=[-5,5,0.1],n_trials=10000,n_blocks=5):
 
@@ -24,34 +26,14 @@ def estimate_model(internal_noise_bounds=[0,10,0.1],criteria_bounds=[-5,5,0.1],n
 	all_prob_agreement = []
 
 	for criteria in criterias:
-		for internal_noise_sigma in internal_noise_sigmas:
-			
-			all_criteria.append(criteria)
-			all_internal_noise_sigma.append(internal_noise_sigma)
+		for internal_noise_sigma in internal_noise_sigmas:			
 
 			# simulate observer with (criteria, internal_noise_sigma)
+			prob_agreement,prob_interval1= utils.simulate_observer(internal_noise_sigma,criteria, n_blocks, n_trials)
 
-			# each trial is composed of two (random) signals (interval1 & interval2)
-			signal_interval1 = np.random.normal(size=(n_blocks,n_trials))
-			signal_interval2 = np.random.normal(size=(n_blocks,n_trials))
-	
-			# responses in each pass are modified by a random draw of internal noise for each trial and pass 
-			internal_noise_interval1_pass1 = internal_noise_sigma*np.random.normal(size=(n_blocks,n_trials))
-			internal_noise_interval2_pass1 = internal_noise_sigma*np.random.normal(size=(n_blocks,n_trials))
-			internal_noise_interval1_pass2 = internal_noise_sigma*np.random.normal(size=(n_blocks,n_trials))
-			internal_noise_interval2_pass2 = internal_noise_sigma*np.random.normal(size=(n_blocks,n_trials))
-
-			all_response_pass1 = (signal_interval1 + internal_noise_interval1_pass1) > criteria + \
-								(signal_interval2 + internal_noise_interval2_pass1)
-			all_response_pass2 = (signal_interval1 + internal_noise_interval1_pass2) > criteria + \
-								(signal_interval2 + internal_noise_interval2_pass2)
-
-			# probability interval 1 (average of prob in both pass)
-			prob_interval1 = (np.mean(all_response_pass1) + np.mean(all_response_pass2))/2
+			all_criteria.append(criteria)
+			all_internal_noise_sigma.append(internal_noise_sigma)
 			all_prob_interval1.append(prob_interval1)
-
-			#probability of agreement between pass
-			prob_agreement = np.mean(all_response_pass1==all_response_pass2) 
 			all_prob_agreement.append(prob_agreement)
 
 	model = pd.DataFrame({'criteria':all_criteria,
