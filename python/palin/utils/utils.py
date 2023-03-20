@@ -2,13 +2,14 @@ import numpy as np
 import pandas as pd
 #from typing import Literal 
 
-def index_double_pass_trials(data_df, stim_parameter_id):
+
+def index_double_pass_trials(data_df,trial_ids=['experimentor','type','subject','session'] ,dimension_id='trial',response_id='double_pass_id',value_id='stim_parameter_id'):
 	# create double_pass_id column by first identifying repeated trials with ordered set etc.
 	# list all trials' pairs of stimuli (each pair is represented by a unique frozen set)  
-	stimuli = data_df.groupby(['experimentor','type','subject','session',"trial"]).agg({stim_parameter_id: lambda group: frozenset(group)}).reset_index()
+	stimuli = data_df.groupby(trial_ids+dimension_id).agg({stim_parameter_id: lambda group: frozenset(group)}).reset_index()
 
 	# count how many trials have each unique pair of stimuli
-	pass_count = stimuli.groupby(['experimentor','type','subject','session',stim_parameter_id]).agg({'trial': ['nunique','first','last']})
+	pass_count = stimuli.groupby(trial_ids+[stim_parameter_id]).agg({dimension_id: ['nunique','first','last']})
 	pass_count.columns = ["_".join(x) for x in pass_count.columns.ravel()]
 	pass_count = pass_count.reset_index()
 
@@ -16,12 +17,12 @@ def index_double_pass_trials(data_df, stim_parameter_id):
 	double_pass_stim = pass_count[pass_count.trial_nunique==2]
 
 	# assign unique id to each double_pass within each subject
-	double_pass_stim['double_pass_id']=double_pass_stim.groupby(['subject']).trial_nunique.cumcount()
+	double_pass_stim['double_pass_id']=double_pass_stim.groupby(trial_ids).'%s_nunique'%dimension_id.cumcount()
 
 	# join to base dataset
-	double_pass_stim = double_pass_stim.melt(id_vars=['experimentor','type','subject','session','double_pass_id'], value_vars=['trial_first','trial_last'], var_name='trial_type', value_name='trial')
-	data_df= pd.merge(data_df, double_pass_stim[['experimentor','type','subject','session','double_pass_id','trial']], how="left", on=[ 'experimentor','type','subject','session',"trial"])
-	return data_df
+	double_pass_stim = double_pass_stim.melt(id_vars=[trial_ids+[response_id]], value_vars=['%s_first'%dimension_id,'%s_last'%dimension_id], var_name='%s_type'%dimension_id, value_name=[dimension_id])
+	data_df= pd.merge(data_df, double_pass_stim[[trial_ids+[dimension_id]+[response_id]]], how="left", on=[trial_ids+[dimension_id]])
+	return data_df	
 
 def compute_prob_agreement(data_df,double_pass_id):
 	# does this assume that the dataset has a "double_pass_id" column ? (yes)
