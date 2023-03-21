@@ -6,10 +6,10 @@ import pandas as pd
 def index_double_pass_trials(data_df,trial_ids=['experimentor','type','subject','session'] ,dimension_id='trial',response_id='double_pass_id',value_id='stim_parameter_id'):
 	# create double_pass_id column by first identifying repeated trials with ordered set etc.
 	# list all trials' pairs of stimuli (each pair is represented by a unique frozen set)  
-	stimuli = data_df.groupby(trial_ids+dimension_id).agg({stim_parameter_id: lambda group: frozenset(group)}).reset_index()
+	stimuli = data_df.groupby(trial_ids+[dimension_id]).agg({value_id: lambda group: frozenset(group)}).reset_index()
 
 	# count how many trials have each unique pair of stimuli
-	pass_count = stimuli.groupby(trial_ids+[stim_parameter_id]).agg({dimension_id: ['nunique','first','last']})
+	pass_count = stimuli.groupby(trial_ids+[value_id]).agg({dimension_id: ['nunique','first','last']})
 	pass_count.columns = ["_".join(x) for x in pass_count.columns.ravel()]
 	pass_count = pass_count.reset_index()
 
@@ -17,43 +17,53 @@ def index_double_pass_trials(data_df,trial_ids=['experimentor','type','subject',
 	double_pass_stim = pass_count[pass_count.trial_nunique==2]
 
 	# assign unique id to each double_pass within each subject
-	double_pass_stim['double_pass_id']=double_pass_stim.groupby(trial_ids).'%s_nunique'%dimension_id.cumcount()
+	double_pass_stim['double_pass_id']=double_pass_stim.groupby(trial_ids)['%s_nunique'%dimension_id].cumcount()
 
 	# join to base dataset
-	double_pass_stim = double_pass_stim.melt(id_vars=[trial_ids+[response_id]], value_vars=['%s_first'%dimension_id,'%s_last'%dimension_id], var_name='%s_type'%dimension_id, value_name=[dimension_id])
-	data_df= pd.merge(data_df, double_pass_stim[[trial_ids+[dimension_id]+[response_id]]], how="left", on=[trial_ids+[dimension_id]])
+	double_pass_stim = double_pass_stim.melt(id_vars=trial_ids+[response_id], value_vars=['%s_first'%dimension_id,'%s_last'%dimension_id], var_name='%s_type'%dimension_id, value_name=dimension_id)
+	data_df= pd.merge(data_df, double_pass_stim[trial_ids+[dimension_id]+[response_id]], how="left", on=trial_ids+[dimension_id])
 	return data_df	
 
-def compute_prob_agreement(data_df,double_pass_id):
-	# does this assume that the dataset has a "double_pass_id" column ? (yes)
-	a = data_df[data_df.double_pass_id.notna()].groupby(['experimentor','type','subject','session','double_pass_id','trial','stim_order']).response.mean().reset_index()
-	a.response=a.response.astype(int)
-	b=a[a.stim_order==0].groupby(['experimentor','type','subject','session','double_pass_id']).agg({'response': lambda group: list(group)}).reset_index()
-	b['response']=b['response'].astype(str)
-	b=b.join(b['response'].str.split(expand=True).rename(columns={0:'response1',1:'response2'}))
-	b['response1']=b['response1'].str.replace(r'\D', '')
-	b['response2']=b['response2'].str.replace(r'\D', '')
-	b = b.drop(columns=['response'])
-	c=b.groupby(['experimentor','type','subject','session']).double_pass_id.nunique().reset_index().rename(columns={'double_pass_id':'sum_double_pass'})
-	b=pd.merge(b, c, how="left", on=['experimentor','type','subject','session'])
-	d=b[b[['response1','response2']].nunique(axis=1) == 1].groupby(['experimentor','type','subject','session'], as_index=False).size()
-	b=pd.merge(b, d, how="left", on=['experimentor','type','subject','session'])
-	b['pc_agree']=b['size']/b['sum_double_pass']
-	data_df= pd.merge(data_df, b[['experimentor','type','subject','session','double_pass_id','sum_double_pass','size','pc_agree']], how="left", on=['experimentor','type','subject','session', "double_pass_id"])
-	return data_df
+import pandas as pd
+
+def compute_prob_agreement(data_df, trial_ids=['experimentor', 'type', 'subject', 'session'], dimension_id='trial', response_id='response', order='stim_order', double_pass='double_pass_id'):
+    if double_pass not in data_df.columns:
+        raise ValueError(f"Column {double_pass} not found in data_df")
+    if response_id not in data_df.columns:
+        raise ValueError(f"Column {response_id} not found in data_df")
+    if not data_df[response_id].dtype.kind == 'i':
+        data_df[response_id] = pd.to_numeric(data_df[response_id], errors='coerce').astype('Int64')
+    if data_df[response_id].isna().any():
+        raise ValueError(f"Column {response_id} contains missing or non-numeric values")
+    a = data_df[data_df[double_pass].notna()].groupby(trial_ids + [double_pass] + [dimension_id] + [order])[response_id].mean().reset_index()
+    a[response_id] = a[response_id].astype(int)
+    b = a[a[order] == 0].groupby(trial_ids + [double_pass]).agg({response_id: lambda group: list(group)}).reset_index()
+    
+    b['response'] = b['response'].astype(str)
+    b = b.join(b[response_id].str.split(expand=True).rename(columns={0: '%s1' % response_id, 1: '%s2' % response_id}))
+    b['%s1' % response_id] = b['%s1' % response_id].str.replace(r'\D', '')
+    b['%s2' % response_id] = b['%s2' % response_id].str.replace(r'\D', '')
+    b = b.drop(columns=[response_id])
+    c = b.groupby(trial_ids).agg(sum_double_pass=(double_pass, 'nunique')).reset_index()
+    b = pd.merge(b, c, how='left', on=trial_ids)
+    d = b[b[['%s1' % response_id, '%s2' % response_id]].nunique(axis=1) == 1].groupby(trial_ids, as_index=False)['%s1' % response_id].size().rename(columns={'size': 'size_agree'})
+    b = pd.merge(b, d, how='left', on=trial_ids)
+    b['pc_agree'] = b['size_agree'] / b['sum_double_pass']
+    data_df = pd.merge(data_df, b[trial_ids + [double_pass] + ['sum_double_pass', 'size_agree', 'pc_agree']], how='left', on=trial_ids + [double_pass])
+    return data_df
 
 
-def compute_prob_interval1(data_df, whole=False):
+def compute_prob_interval1(data_df,trial_ids=['experimentor', 'type', 'subject', 'session'], dimension_id='trial', response_id='response', order='stim_order', double_pass='double_pass_id', whole=False):
 	# does this assume that the dataset has a "double_pass_id" column ? (yes)
 	# compute int1 on whole data, or only on trials with a non null double_pass_id
-	double_pass_trials = data_df[data_df.double_pass_id.notna()]
-	nb_int1 = double_pass_trials[(double_pass_trials.stim_order==0) & (double_pass_trials.response==True)].groupby(['experimentor','type','subject','session','trial','stim_order']).response.mean().reset_index()
-	nb_int1 = nb_int1.groupby(['experimentor','type','subject','session']).trial.count().reset_index()
-	nb_total_trials = double_pass_trials.groupby(['experimentor','type','subject','session']).trial.nunique().reset_index()
-	p_int1 = pd.merge(nb_int1,nb_total_trials,how='left',on=['experimentor','type','subject','session'])
-	p_int1['p_int1'] = p_int1.trial_x / p_int1.trial_y
-	p_int1=p_int1.loc[:, ~p_int1.columns.isin(['trail_x', 'trial_y'])]
-	p_int1=pd.merge(p_int1,double_pass_trials,how='left',on=['experimentor','type','subject','session'])
+	double_pass_trials = data_df[data_df[double_pass].notna()]
+	nb_int1 = double_pass_trials[(double_pass_trials[order]==0) & (double_pass_trials[response_id]==True)].groupby(trial_ids+[dimension_id]+[order])[response_id].mean().reset_index()
+	nb_int1 = nb_int1.groupby(trial_ids)[dimension_id].count().reset_index()
+	nb_total_trials = double_pass_trials.groupby(trial_ids)[dimension_id].nunique().reset_index()
+	p_int1 = pd.merge(nb_int1,nb_total_trials,how='left',on=trial_ids)
+	p_int1['p_int1'] = p_int1['%s_x' % dimension_id] / p_int1['%s_y' % dimension_id]
+	p_int1=p_int1.loc[:, ~p_int1.columns.isin(['%s_x' % dimension_id, '%s_y' % dimension_id])]
+	p_int1=pd.merge(p_int1,double_pass_trials,how='left',on=trial_ids)
 	return p_int1
 
 
