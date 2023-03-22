@@ -27,6 +27,9 @@ def index_double_pass_trials(data_df,trial_ids=['experimentor','type','subject',
 import pandas as pd
 
 def compute_prob_agreement(data_df, trial_ids=['experimentor', 'type', 'subject', 'session'], dimension_id='trial', response_id='response', order='stim_order', double_pass='double_pass_id'):
+	# computes the probability of agreement between two responses to a repeated stimuli on the double pass trials 
+
+	# we have to verify that required columns are present in the dataframe like double_pass and response_id and if the response column contains only numeric values. If not, it raises a ValueError.
     if double_pass not in data_df.columns:
         raise ValueError(f"Column {double_pass} not found in data_df")
     if response_id not in data_df.columns:
@@ -35,36 +38,65 @@ def compute_prob_agreement(data_df, trial_ids=['experimentor', 'type', 'subject'
         data_df[response_id] = pd.to_numeric(data_df[response_id], errors='coerce').astype('Int64')
     if data_df[response_id].isna().any():
         raise ValueError(f"Column {response_id} contains missing or non-numeric values")
-    a = data_df[data_df[double_pass].notna()].groupby(trial_ids + [double_pass] + [dimension_id] + [order])[response_id].mean().reset_index()
-    a[response_id] = a[response_id].astype(int)
-    b = a[a[order] == 0].groupby(trial_ids + [double_pass]).agg({response_id: lambda group: list(group)}).reset_index()
+
+    # grouping the input DataFrame by the trial IDs, double-pass ID, dimension ID, and order, and computing the mean response for each group    
+    trial_response_mean_df  = data_df[data_df[double_pass].notna()].groupby(trial_ids + [double_pass] + [dimension_id] + [order])[response_id].mean().reset_index()
+    #the response column contains only numeric values
+    trial_response_mean_df [response_id] = trial_response_mean_df [response_id].astype(int)
+
+    # The order column is assumed to contain either 0 or 1, indicating which response was made first and which was made second
+    trial_responses_df = trial_response_mean_df [trial_response_mean_df [order] == 0].groupby(trial_ids + [double_pass]).agg({response_id: lambda group: list(group)}).reset_index()
+    trial_responses_df['response'] = trial_responses_df['response'].astype(str)
     
-    b['response'] = b['response'].astype(str)
-    b = b.join(b[response_id].str.split(expand=True).rename(columns={0: '%s1' % response_id, 1: '%s2' % response_id}))
-    b['%s1' % response_id] = b['%s1' % response_id].str.replace(r'\D', '')
-    b['%s2' % response_id] = b['%s2' % response_id].str.replace(r'\D', '')
-    b = b.drop(columns=[response_id])
-    c = b.groupby(trial_ids).agg(sum_double_pass=(double_pass, 'nunique')).reset_index()
-    b = pd.merge(b, c, how='left', on=trial_ids)
-    d = b[b[['%s1' % response_id, '%s2' % response_id]].nunique(axis=1) == 1].groupby(trial_ids, as_index=False)['%s1' % response_id].size().rename(columns={'size': 'size_agree'})
-    b = pd.merge(b, d, how='left', on=trial_ids)
-    b['pc_agree'] = b['size_agree'] / b['sum_double_pass']
-    data_df = pd.merge(data_df, b[trial_ids + [double_pass] + ['sum_double_pass', 'size_agree', 'pc_agree']], how='left', on=trial_ids + [double_pass])
-    return data_df
+    # split the response column into two separate columns based on the order
+    trial_responses_df = trial_responses_df.join(trial_responses_df[response_id].str.split(expand=True).rename(columns={0: '%s1' % response_id, 1: '%s2' % response_id}))
+    
+    #clean the response data by removing any non-numeric characters
+    trial_responses_df['%s1' % response_id] = trial_responses_df['%s1' % response_id].str.replace(r'\D', '')
+    trial_responses_df['%s2' % response_id] = trial_responses_df['%s2' % response_id].str.replace(r'\D', '')
+    
+    # drop the original response column
+    trial_responses_df = trial_responses_df.drop(columns=[response_id])
+
+    #counting the number of unique double-pass IDs for each trial and save the result in a new dataframe
+    unique_double_pass_df = trial_responses_df.groupby(trial_ids).agg(sum_double_pass=(double_pass, 'nunique')).reset_index()
+    
+    #merge the previously created dataframes, count the number of trials where the responses agree, and save the result in a new dataframe
+    trial_responses_df = pd.merge(trial_responses_df, unique_double_pass_df, how='left', on=trial_ids)
+    agreement_size_df = trial_responses_df[trial_responses_df[['%s1' % response_id, '%s2' % response_id]].nunique(axis=1) == 1].groupby(trial_ids, as_index=False)['%s1' % response_id].size().rename(columns={'size': 'size_agree'})
+    
+    #compute the probability of agreement for each trial and save the result in a new column of the input dataframe
+    trial_responses_df = pd.merge(trial_responses_df, agreement_size_df, how='left', on=trial_ids)
+    trial_responses_df['pc_agree'] = trial_responses_df['size_agree'] / trial_responses_df['sum_double_pass']
+    
+    #merge the computed probabilities of agreement with the original dataframe and return the merged dataframe
+    merged_df=data_df.merge(trial_responses_df[trial_ids + [double_pass] + ['sum_double_pass', 'size_agree', 'pc_agree']], how='left', on=trial_ids + [double_pass])
+
+    return merged_df
 
 
 def compute_prob_interval1(data_df,trial_ids=['experimentor', 'type', 'subject', 'session'], dimension_id='trial', response_id='response', order='stim_order', double_pass='double_pass_id', whole=False):
 	# does this assume that the dataset has a "double_pass_id" column ? (yes)
 	# compute int1 on whole data, or only on trials with a non null double_pass_id
+
+	# Select only the double-pass trials
 	double_pass_trials = data_df[data_df[double_pass].notna()]
+
+	#Compute the number of int1 trials
 	nb_int1 = double_pass_trials[(double_pass_trials[order]==0) & (double_pass_trials[response_id]==True)].groupby(trial_ids+[dimension_id]+[order])[response_id].mean().reset_index()
 	nb_int1 = nb_int1.groupby(trial_ids)[dimension_id].count().reset_index()
+
+	#Compute the total number of trials
 	nb_total_trials = double_pass_trials.groupby(trial_ids)[dimension_id].nunique().reset_index()
-	p_int1 = pd.merge(nb_int1,nb_total_trials,how='left',on=trial_ids)
-	p_int1['p_int1'] = p_int1['%s_x' % dimension_id] / p_int1['%s_y' % dimension_id]
-	p_int1=p_int1.loc[:, ~p_int1.columns.isin(['%s_x' % dimension_id, '%s_y' % dimension_id])]
-	p_int1=pd.merge(p_int1,double_pass_trials,how='left',on=trial_ids)
-	return p_int1
+	
+	#Merge the number of int1 and total trials and compute p_int1
+	merged_data  = pd.merge(nb_int1,nb_total_trials,how='left',on=trial_ids)
+	merged_data ['p_int1'] = merged_data ['%s_x' % dimension_id] / merged_data ['%s_y' % dimension_id]
+	merged_data =merged_data .loc[:, ~merged_data .columns.isin(['%s_x' % dimension_id, '%s_y' % dimension_id])]
+	
+	# Merge with the double pass trials and return the result
+	result_df =pd.merge(merged_data ,double_pass_trials,how='left',on=trial_ids)
+	return result_df 
 
 
 def simulate_observer(internal_noise_sigma,criteria, n_trials, n_blocks=1): 
