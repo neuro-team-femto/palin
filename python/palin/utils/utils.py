@@ -3,9 +3,17 @@ import pandas as pd
 #from typing import Literal 
 
 
-def index_double_pass_trials(data_df,trial_ids=['experimentor','type','subject','session'] ,dimension_id='trial',response_id='double_pass_id',value_id='stim_parameter_id'):
-	# create double_pass_id column by first identifying repeated trials with ordered set etc.
-	# list all trials' pairs of stimuli (each pair is represented by a unique frozen set)  
+def index_double_pass_trials(data_df, trial_ids=['experimentor','type','subject','session'], dimension_id='trial',response_id='double_pass_id',value_id='stim_parameter_id'):
+	''' utility to identify repeated trials in experimental sessions (i.e. 'double pass trials'), and tag them with a unique id stored in a new column. 
+	repeated trials are identified based on the features of their intervals (e.g. pitch values for each sound in trials consisting of pairs of sounds), and compared as unordered sets 
+	(so that e.g. trials consisting of the same 2 sounds in a different order are considered repeated). 
+	trial_ids: list of columns within which double_pass_trials should be searched (typically: subject, but also perhaps session)
+	dimension_id: the unique identifier of trials within one session
+	response_id: the name of the unique double_pass trial id
+	value_id: trial features on which basis repeated trials are identified (trials are considered repeated if they have the same content in this column)  
+	'''
+
+	# represent the several value_id values of a given trial (ex. 6 features for interval 1, 6 features for interval 2) as a frozenset
 	stimuli = data_df.groupby(trial_ids+[dimension_id]).agg({value_id: lambda group: frozenset(group)}).reset_index()
 
 	# count how many trials have each unique pair of stimuli
@@ -17,7 +25,7 @@ def index_double_pass_trials(data_df,trial_ids=['experimentor','type','subject',
 	double_pass_stim = pass_count[pass_count.trial_nunique==2]
 
 	# assign unique id to each double_pass within each subject
-	double_pass_stim['double_pass_id']=double_pass_stim.groupby(trial_ids)['%s_nunique'%dimension_id].cumcount()
+	double_pass_stim[response_id]=double_pass_stim.groupby(trial_ids)['%s_nunique'%dimension_id].cumcount()
 
 	# join to base dataset
 	double_pass_stim = double_pass_stim.melt(id_vars=trial_ids+[response_id], value_vars=['%s_first'%dimension_id,'%s_last'%dimension_id], var_name='%s_type'%dimension_id, value_name=dimension_id)
