@@ -83,9 +83,10 @@ def compute_prob_agreement(data_df, session_identifiers=['experimentor', 'type',
     return merged_df
 
 
-def compute_prob_interval1(data_df, session_identifiers=['experimentor', 'type', 'subject', 'session'], trial_identifier='trial', response_identifier='response', order_identifier='stim_order', double_pass_identifier='double_pass_id', whole=False):
-	# does this assume that the dataset has a "double_pass_id" column ? (yes)
-	# compute int1 on whole data, or only on trials with a non null double_pass_id
+def compute_prob_interval1(data_df, session_identifiers=['experimentor', 'type', 'subject', 'session'], trial_identifier='trial', response_identifier='response', order_identifier='stim_order', double_pass_identifier='double_pass_id', p_int_1_identifier = 'p_int1'):
+	''' Computes probability that each subject defined unique in session_identifiers responds true to the first interval, i.e. to the stimulus in each trial identified by order_identifier = 0
+	This computes p_int1 only on the subset of repeated trials, and assumes that the dataset already has a column (e.g. double_pass_id) identifying repeated trials. Use utils.index_double_pass_trials to create that column if doesn't exist. 
+	'''
 
 	# Select only the double-pass trials
 	double_pass_trials = data_df[data_df[double_pass_identifier].notna()]
@@ -102,9 +103,9 @@ def compute_prob_interval1(data_df, session_identifiers=['experimentor', 'type',
 	# replace int1 missing values in by zeros
 	merged_data = merged_data.fillna({trial_identifier+'_int1':0})
 	# compute p_int1 as nb_int1 / nb_total
-	merged_data ['p_int1'] = merged_data ['%s_int1' % trial_identifier] / merged_data ['%s_total' % trial_identifier]
+	merged_data [p_int_1_identifier] = merged_data ['%s_int1' % trial_identifier] / merged_data ['%s_total' % trial_identifier]
 	
-	return merged_data[session_identifiers+['p_int1']] 
+	return merged_data[session_identifiers+[p_int_1_identifier]] 
 
 
 def simulate_observer(internal_noise_sigma,criteria, n_trials, n_blocks=1): 
