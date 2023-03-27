@@ -3,21 +3,21 @@ import pandas as pd
 #from typing import Literal 
 
 
-def index_double_pass_trials(data_df, trial_ids=['experimentor','type','subject','session'], dimension_id='trial',response_id='double_pass_id',value_id='stim_parameter_id'):
+def index_double_pass_trials(data_df, session_identifiers=['experimentor','type','subject','session'], trial_identifier='trial',response_identifier='double_pass_id',value_identifier='stim_parameter_id'):
 	''' utility to identify repeated trials in experimental sessions (i.e. 'double pass trials'), and tag them with a unique id stored in a new column. 
 	repeated trials are identified based on the features of their intervals (e.g. pitch values for each sound in trials consisting of pairs of sounds), and compared as unordered sets 
 	(so that e.g. trials consisting of the same 2 sounds in a different order are considered repeated). 
-	trial_ids: list of columns within which double_pass_trials should be searched (typically: subject, but also perhaps session)
-	dimension_id: the unique identifier of trials within one session
-	response_id: the name of the unique double_pass trial id
-	value_id: trial features on which basis repeated trials are identified (trials are considered repeated if they have the same content in this column)  
+	session_identifiers: list of columns within which double_pass_trials should be searched (typically: subject, but also perhaps session)
+	trial_identifier: the unique identifier of trials within one session
+	response_identifier: the name of the unique double_pass trial id
+	value_identifier: trial features on which basis repeated trials are identified (trials are considered repeated if they have the same content in this column)  
 	'''
 
-	# represent the several value_id values of a given trial (ex. 6 features for interval 1, 6 features for interval 2) as a frozenset
-	stimuli = data_df.groupby(trial_ids+[dimension_id]).agg({value_id: lambda group: frozenset(group)}).reset_index()
+	# represent the several value_identifier values of a given trial (ex. 6 features for interval 1, 6 features for interval 2) as a frozenset
+	stimuli = data_df.groupby(session_identifiers+[trial_identifier]).agg({value_identifier: lambda group: frozenset(group)}).reset_index()
 
 	# count how many trials have each unique pair of stimuli
-	pass_count = stimuli.groupby(trial_ids+[value_id]).agg({dimension_id: ['nunique','first','last']})
+	pass_count = stimuli.groupby(session_identifiers+[value_identifier]).agg({trial_identifier: ['nunique','first','last']})
 	pass_count.columns = ["_".join(x) for x in pass_count.columns.ravel()]
 	pass_count = pass_count.reset_index()
 
@@ -25,11 +25,11 @@ def index_double_pass_trials(data_df, trial_ids=['experimentor','type','subject'
 	double_pass_stim = pass_count[pass_count.trial_nunique==2]
 
 	# assign unique id to each double_pass within each subject
-	double_pass_stim[response_id]=double_pass_stim.groupby(trial_ids)['%s_nunique'%dimension_id].cumcount()
+	double_pass_stim[response_identifier]=double_pass_stim.groupby(session_identifiers)['%s_nunique'%trial_identifier].cumcount()
 
 	# join to base dataset
-	double_pass_stim = double_pass_stim.melt(id_vars=trial_ids+[response_id], value_vars=['%s_first'%dimension_id,'%s_last'%dimension_id], var_name='%s_type'%dimension_id, value_name=dimension_id)
-	data_df= pd.merge(data_df, double_pass_stim[trial_ids+[dimension_id]+[response_id]], how="left", on=trial_ids+[dimension_id])
+	double_pass_stim = double_pass_stim.melt(id_vars=session_identifiers+[response_identifier], value_vars=['%s_first'%trial_identifier,'%s_last'%trial_identifier], var_name='%s_type'%trial_identifier, value_name=trial_identifier)
+	data_df= pd.merge(data_df, double_pass_stim[session_identifiers+[trial_identifier]+[response_identifier]], how="left", on=session_identifiers+[trial_identifier])
 	return data_df	
 
 import pandas as pd
