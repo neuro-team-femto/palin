@@ -1,0 +1,74 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+  )
+```
+
+# PALIN: Convert your PAs into INs
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of `palin` is to provide utilities for working with reverse correlation data. It can be used, for instance, to estimate internal noise in such tasks.
+
+## Installation
+
+You can install the development version of `palin` from GitHub with:
+
+```{r, eval = FALSE}
+install.packages("remotes")
+
+remotes::install_github(
+    repo = "https://github.com/neuro-team-femto/palin/r",
+    dependencies = TRUE
+    )
+```
+
+## Usage
+
+Computing response bias and internal noise from the percentage of agreement.
+
+```{r sdt-example, eval = TRUE}
+library(palin)
+
+# example data (70% agreement and no response bias)
+df <- data.frame(prop_agree = 0.7, prop_int1 = 0.5, ntrials = 1e2)
+
+# fitting the SDT model to these data
+sdt_fitting(data = df, ntrials = 1e4, method = "bobyqa")
+```
+
+Fitting the drift diffusion model to the raw data (minus the last block).
+
+```{r ddm-example, eval = TRUE, message = FALSE}
+library(tidyverse)
+
+# importing the data
+data(self_produced_speech)
+head(self_produced_speech)
+
+# reshaping the data
+df <- self_produced_speech |>
+    # removing the last block
+    filter(block < 7) |>
+    # keeping only the relevant columns
+    select(participant, choice = response, RT) |>
+    mutate(choice = ifelse(test = choice == "stim1", yes = 1, no = 2) )
+
+# splitting data by participant
+df_ln <- df |> filter(participant == "LN")
+df_mm <- df |> filter(participant == "MM")
+
+# fitting the full DDM for LN and MM (pars are a, v, t0, w, sv)
+ddm_fitting(rt = df_ln$RT, resp = df_ln$choice, method = "nlminb")$par
+ddm_fitting(rt = df_mm$RT, resp = df_mm$choice, method = "nlminb")$par
+```
