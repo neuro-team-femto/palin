@@ -52,7 +52,7 @@ def compute_accuracy(data_df, control_kernel, session_identifiers = ['experiment
 		#print(control_kernel)
 		return np.dot(list(x), control_kernel)
 
-	trial_data = trial_data.groupby(['experimentor','type','subject','session']+[trial_identifier]).agg({'%s_pos'%stimulus_value:dot_control,
+	trial_data = trial_data.groupby(session_identifiers+[trial_identifier]).agg({'%s_pos'%stimulus_value:dot_control,
 																										'%s_neg'%stimulus_value:dot_control}).reset_index()
 
 	# count hits as trials for which the positive stimuli is the one with higher dot product to control kernel
