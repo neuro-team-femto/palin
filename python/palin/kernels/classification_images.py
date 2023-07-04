@@ -9,7 +9,7 @@ Functions for kernel calculating method in Classification images
 import pandas as pd
 import numpy as np
 
-def compute_kernel(data_df,trial_ids=['experimentor','type','subject','session'], dimension_ids=['segment'],response_id='response', value_id='pitch', normalize=False):
+def compute_kernel(data_df,trial_ids=['experimentor','type','subject','session'], dimension_ids=['segment'],response_id='response', value_id='pitch', normalize=True):
 	''' computes first-order temporal kernels for each participant using the classification image, ie. 
 	mean(stimulus features classified as positive) - mean(stimulus features classified as negative)'''
 
