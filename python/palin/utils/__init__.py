@@ -1,3 +1,2 @@
 # Palin utilities package
-
-from utils import *
+from palin.utils import *

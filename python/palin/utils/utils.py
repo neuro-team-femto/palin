@@ -32,7 +32,7 @@ def index_double_pass_trials(data_df, session_identifiers=['experimentor','type'
 	data_df= pd.merge(data_df, double_pass_stim[session_identifiers+[trial_identifier]+[response_identifier]], how="left", on=session_identifiers+[trial_identifier])
 	return data_df	
 
-import pandas as pd
+
 
 def compute_prob_agreement(data_df, session_identifiers=['experimentor', 'type', 'subject', 'session'], trial_identifier='trial', response_identifier='response', order_identifier='stim_order', double_pass_identifier='double_pass_id'):
 	# computes the probability of agreement between two responses to a repeated stimuli on the double pass trials 
