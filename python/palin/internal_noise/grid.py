@@ -15,7 +15,6 @@ def estimate_model(internal_noise_bounds=[0,10,0.1],criteria_bounds=[-5,5,0.1],n
 
 	'''This will estimate a model mapping input parameters to output parameters
 	'''
-	print('This will estimate a model mapping input parameters to output parameters')
 	criterias = np.round(np.arange(criteria_bounds[0],criteria_bounds[1]+criteria_bounds[2],criteria_bounds[2]),decimals=2)
 
 	internal_noise_sigmas = np.round(np.arange(internal_noise_bounds[0],internal_noise_bounds[1]+internal_noise_bounds[2],internal_noise_bounds[2]),decimals=2)
@@ -46,8 +45,6 @@ def estimate_model(internal_noise_bounds=[0,10,0.1],criteria_bounds=[-5,5,0.1],n
 def invert_model(model, prob_agreement, prob_interval1): 
 	'''This will find best input parameters for a given output pair
 	'''
-
-	print('This will find best input parameters for a given output pair')
 
 	model['distance'] = (model.prob_interval1-prob_interval1)**2 + \
 						(model.prob_agreement-prob_agreement)**2

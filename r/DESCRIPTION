@@ -1,0 +1,42 @@
+Package: palin
+Title: Utility functions for analysing reverse correlation (speech) data
+Version: 0.0.1
+Date: 2023-02-21
+Authors@R:
+    c(
+    person(
+    given = "Ladislas", family = "Nalborczyk",
+    role = c("aut", "cre"),
+    email = "ladislas.nalborczyk@gmail.com", 
+    comment = c(ORCID = "0000-0002-7419-9855")
+    ),
+    person(
+    given = "Aynaz", family = "Adl Zarrabi",
+    role = c("ctb"),
+    email = "aynaz.adlzarrabi@femto-st.fr"
+    ),
+    person(
+    given = "Jean-Julien", family = "Aucouturier",
+    role = c("ctb"),
+    email = "aucouturier@gmail.com"
+    ) )
+Description: Providing utilities for working with reverse correlation data, such as
+    computing individual- and group-level kernels, estimating internal noise, etc.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.1
+Imports:
+    dplyr,
+    fddm,
+    ggplot2,
+    lme4,
+    optimx,
+    parallel,
+    rlang,
+    scales,
+    stringr,
+    tidyr
+Depends: 
+    R (>= 4.2.0)
+LazyData: true
