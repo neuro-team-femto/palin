@@ -27,8 +27,10 @@ def compute_kernel(data_df,trial_ids=['experimentor','type','subject','session']
 		for_norm = kernels.groupby(trial_ids)['square_value'].mean().reset_index()
 		kernels = pd.merge(kernels, for_norm, on=trial_ids)
 		kernels['norm_value'] = kernels['kernel_value']/np.sqrt(kernels['square_value_y'])
-		kernels.drop(columns=['index_x','%s_x'%response_id,'%s_x'%value_id,'index_y','%s_y'%response_id,'%s_y'%value_id,'square_value_x', 'square_value_y'], inplace=True)
+		kernels.drop(columns=['square_value_x', 'square_value_y'], inplace=True)
 	
+	kernels.drop(columns=['index_x','%s_x'%response_id,'%s_x'%value_id,'index_y','%s_y'%response_id,'%s_y'%value_id], inplace=True)
+
 	return kernels
 
 def compute_accuracy(data_df, control_kernel, session_identifiers = ['experimentor','type','subject','session'], trial_identifier = 'trial', stimulus_dimension='segment', stimulus_value = 'pitch', stimulus_response='response'): 
