@@ -24,11 +24,15 @@ def compute_kernel(data_df,trial_ids=['experimentor','type','subject','session']
 		# Kernel are then normalized for each participant/session by dividing them 
 		# by the square root of the sum of their squared values.
 		kernels['square_value'] = kernels['kernel_value']**2
-		for_norm = kernels.groupby(trial_ids)['square_value'].mean().reset_index()
-		kernels = pd.merge(kernels, for_norm, on=trial_ids)
-		kernels['norm_value'] = kernels['kernel_value']/np.sqrt(kernels['square_value_y'])
-		kernels.drop(columns=['square_value_x', 'square_value_y'], inplace=True)
-	
+		if trial_ids: 
+			for_norm = kernels.groupby(trial_ids)['square_value'].mean().reset_index()
+			kernels = pd.merge(kernels, for_norm, on=trial_ids, suffixes=('', '_mean'))
+		else:
+			kernels['square_value_mean'] = kernels.square_value.mean()		 
+
+		kernels['kernel_value'] = kernels['kernel_value']/np.sqrt(kernels['square_value_mean'])
+		kernels.drop(columns=['square_value', 'square_value_mean'], inplace=True)
+		
 	kernels.drop(columns=['index_x','%s_x'%response_id,'%s_x'%value_id,'index_y','%s_y'%response_id,'%s_y'%value_id], inplace=True)
 
 	return kernels
