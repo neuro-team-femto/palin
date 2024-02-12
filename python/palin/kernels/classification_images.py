@@ -9,15 +9,15 @@ Functions for kernel calculating method in Classification images
 import pandas as pd
 import numpy as np
 
-def compute_kernel(data_df,trial_ids=['experimentor','type','subject','session'], dimension_ids=['segment'],response_id='response', value_id='pitch', normalize=True):
+def compute_kernel(data_df, trial_ids=['experimentor','type','subject','session'], dimension_ids=['segment'],response_id='response', value_id='pitch', normalize=True):
 	''' computes first-order temporal kernels for each participant using the classification image, ie. 
 	mean(stimulus features classified as positive) - mean(stimulus features classified as negative)'''
 
 	# for each participant, average stimulus features (e.g. mean pitch for each segment) separately for positive and negative responses, and subtract positives - negatives 
-	dimension_mean_value = data_df.groupby(trial_ids+[dimension_ids]+[response_id])[value_id].mean().reset_index()
+	dimension_mean_value = data_df.groupby(trial_ids+dimension_ids+[response_id])[value_id].mean().reset_index()
 	positives = dimension_mean_value.loc[dimension_mean_value[response_id] == True].reset_index()
 	negatives = dimension_mean_value.loc[dimension_mean_value[response_id] == False].reset_index()
-	kernels = pd.merge(positives, negatives, on=trial_ids+[dimension_ids])
+	kernels = pd.merge(positives, negatives, on=trial_ids+dimension_ids)
 	kernels['kernel_value'] = kernels['%s_x'%value_id] - kernels['%s_y'%value_id]
 
 	if(normalize):
