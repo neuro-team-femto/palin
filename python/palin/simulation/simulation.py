@@ -68,13 +68,10 @@ class Experiment:
             self.trials.append(Trial(stims))
 
 
-class Analyzer: 
+class Analyser: 
 
-    
-    def set_kernel_method(self,kernel_method):
-        self.kernel_method = kernel_method
-
-    #self.noise_method = noise_method
+    def set_kernel_analyser(self,kernel_analyser):
+        self.kernel_analyser = kernel_analyser
 
     @classmethod
     def to_df(csl, experiment, responses): 
@@ -101,38 +98,20 @@ class Analyzer:
                                    'value': values, 
                                    'response': resps})
 
-    def estimate_kernel(self, experiment, responses): 
+    def estimate_kernel(self, experiment, participant_responses, normalize=True): 
 
-        if self.kernel_method == None: 
+        if self.kernel_analyser == None: 
             print('no kernel method',  file=sys.stderr)
 
-        responses_df = Analyzer.to_df(experiment, responses)
+        responses_df = Analyser.to_df(experiment, participant_responses)
 
-        kernels_df = self.kernel_method(responses_df,
-            trial_ids=[],
-            dimension_ids=['feature'],
-            response_id='response', 
-            value_id='value',
-            normalize=True)
+        kernel_df = self.kernel_analyser.extract_single_kernel(data_df = responses_df,
+        feature_id = 'feature', value_id = 'value', response_id = 'response')
 
-        return list(kernels_df.kernel_value)
+        if normalize: 
+            kernel_df = self.kernel_analyser.normalize_kernel(kernel_df)
 
+        return list(kernel_df.kernel_value)
 
 
 
-
-
-
-
-        #response_df = trials_df.groupby('trial_id').apply(
-            #    lambda group: self.respond_to_trial(new Trial(type='2afc',
-            #                                                  stims=[group[group['stim_order'] == 0]['value'].values,
-            #                                                         group[group['stim_order'] == 1]['value'].values]),
-            #                                        experiment.external_noise_std))
-            # call this "response"
-            #response_df = response_df.reset_index().rename({0:'response'}, axis=1)
-            # merge with trial_data
-            #response_df = response_df.merge(trials_df, on='trial_id')
-            # and convert to True/false for the two stimuli of each trial
-            #response_df['response'] = response_df.apply(lambda row: True if row['response'] == row['stim_order'] else False, axis=1)
-        
