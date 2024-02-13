@@ -6,3 +6,4 @@
 
 from palin.simulation import simulation
 from palin.kernels import classification_images
+from palin.metrics import metrics

@@ -20,7 +20,7 @@ class ClassificationImage(KernelAnalyser):
         kernels = pd.merge(positives, negatives, on=feature_id, suffixes=('_true','_false'))
         kernels['kernel_value'] = kernels['%s_true'%value_id] - kernels['%s_false'%value_id]
         kernels = kernels[[feature_id,'kernel_value']].set_index(feature_id)
-        #kernels.index.names = ['feature']
+        kernels.index.names = ['feature']
         return kernels
 
         
