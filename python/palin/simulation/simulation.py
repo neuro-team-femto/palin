@@ -8,6 +8,7 @@ Class to simulate participant in revcor experiment simulations
 
 import numpy as np
 import pandas as pd
+from ..kernels.kernels import KernelAnalyser
 
 class Participant:
     def __init__(self, kernel,internal_noise_std,criteria):
@@ -70,6 +71,9 @@ class Experiment:
 
 class Analyser: 
 
+    def __init__(self):
+        self.kernel_analyser = None
+
     def set_kernel_analyser(self,kernel_analyser):
         self.kernel_analyser = kernel_analyser
 
@@ -101,7 +105,7 @@ class Analyser:
     def estimate_kernel(self, experiment, participant_responses, normalize=True): 
 
         if self.kernel_analyser == None: 
-            print('no kernel method',  file=sys.stderr)
+            print('no kernel analyser',  file=sys.stderr)
 
         responses_df = Analyser.to_df(experiment, participant_responses)
 
@@ -112,6 +116,17 @@ class Analyser:
             kernel_df = self.kernel_analyser.normalize_kernel(kernel_df)
 
         return list(kernel_df.kernel_value)
+
+    def normalize_kernel(self, kernel): 
+
+        if self.kernel_analyser == None: 
+            print('no kernel method, defaulting to KernelAnalyser')
+            self.kernel_analyser = KernelAnalyser
+        return self.kernel_analyser.normalize_kernel(kernel)
+
+
+
+
 
 
 
