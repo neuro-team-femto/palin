@@ -21,17 +21,23 @@ class KernelAnalyser(ABC):
     def extract_kernels(cls,data_df, group_ids, feature_id, value_id, response_id, normalize = True):
         
         # for each level in group, compute kernels
-        return data_df.groupby(group_ids).apply(lambda group: cls.normalize_kernel(cls.extract_single_kernel(group, feature_id, value_id, response_id),normalize)).reset_index()
+
+        def extract_normalize(group): 
+            kernel = cls.extract_single_kernel(group, feature_id, value_id, response_id)
+            if normalize: 
+                kernel = cls.normalize_kernel(kernel)
+            return kernel
+
+        return data_df.groupby(group_ids).apply(lambda group: extract_normalize(group)).reset_index()
 
     @classmethod    
-    def normalize_kernel(cls,kernel, normalize=True):
-        if normalize: 
-            if isinstance(kernel,pd.DataFrame):
-                rms = np.sqrt((kernel.kernel_value**2).mean())
-                kernel.kernel_value /= rms
-            elif isinstance(kernel,(np.ndarray, list)):
-                rms = np.sqrt(np.mean(np.power(kernel,2)))
-                kernel = kernel/rms
-            else: 
-                raise TypeError('argument kernel is neither a pd.DataFrame or a np.ndarray')
+    def normalize_kernel(cls,kernel):
+        if isinstance(kernel,pd.DataFrame):
+            rms = np.sqrt((kernel.kernel_value**2).mean())
+            kernel.kernel_value /= rms
+        elif isinstance(kernel,(np.ndarray, list)):
+            rms = np.sqrt(np.mean(np.power(kernel,2)))
+            kernel = kernel/rms
+        else: 
+            raise TypeError('argument kernel is neither a pd.DataFrame or a np.ndarray')
         return kernel
