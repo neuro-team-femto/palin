@@ -8,7 +8,7 @@ Functions for kernel calculating method in Classification images
 
 import pandas as pd
 import numpy as np
-from .kernels import KernelAnalyser
+from .kernel_analyser import KernelAnalyser
 
 class ClassificationImage(KernelAnalyser):
 
