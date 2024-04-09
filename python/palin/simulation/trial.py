@@ -23,6 +23,10 @@ class Int1Trial(Trial):
     def n_stims(self):
         return 1
 
+    def __str__(self): 
+        return '1-interval'
+
+
 class Int2Trial(Trial): 
 
     def __init__(self,stims):
@@ -35,5 +39,7 @@ class Int2Trial(Trial):
     def n_stims(self):
         return 2
 
-        
+    def __str__(self): 
+        return '2-interval'
+    
 
