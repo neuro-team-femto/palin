@@ -7,7 +7,7 @@ def kernel_distance(kernel_1, kernel_2, type='CORR'):
     elif type == 'CORR': 
         return kernel_correlation(kernel_1, kernel_2)
     else: 
-        raise AttributeError('metric type %s unknown'%s)
+        raise AttributeError('metric type %s unknown'%type)
 
 
 def kernel_rms(kernel_1, kernel_2):

@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 from abc import ABC, abstractmethod
 
-class KernelAnalyser(ABC):
+class KernelExtractor(ABC):
 
     @classmethod
     @abstractmethod
