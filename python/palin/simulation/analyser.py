@@ -28,8 +28,8 @@ class Analyser(ABC):
                     values.append(value)
                     resps.append(True if response == num_stim else False)
     
-        return pd.DataFrame.from_dict({'trial_id': trial_ids,
-                                   'stim_order': stim_orders,
+        return pd.DataFrame.from_dict({'trial': trial_ids,
+                                   'stim': stim_orders,
                                    'feature': features,
                                    'value': values, 
                                    'response': resps})

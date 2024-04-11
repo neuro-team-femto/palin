@@ -16,11 +16,10 @@ class Simulation(ABC):
         self.experiment_params = experiment_params
         self.observer_params = observer_params
         self.analyser_params = analyser_params
-        self.run_params = self.generate_runs(self.experiment_params,self.observer_params,self.analyser_params)
-        print("generated %d runs"%len(self.run_params))
-
+        self.config_params = self.generate_configs(self.experiment_params,self.observer_params,self.analyser_params)
+        
     @classmethod
-    def generate_runs(cls, experiment_params, observer_params, analyser_params): 
+    def generate_configs(cls, experiment_params, observer_params, analyser_params): 
         # construct simulation plan
         sim_params ={}
         for d in (experiment_params, observer_params, analyser_params): 
@@ -29,30 +28,36 @@ class Simulation(ABC):
         return [dict(zip(keys, v)) for v in itertools.product(*values)]
 
 
-    def run_all(self, n_samples): 
+    def run_all(self, n_runs, verbose=True): 
+        if verbose: 
+            print("Running %d configs"%len(self.config_params))
+
         runs = []
-        for run_param in self.run_params: 
-            print(run_param)
-            for sample in np.arange(n_samples): 
-                print('.',end='')
-                res = self.run(run_param)
-                run_res = run_param.copy() 
-                run_res.update({'sample':sample, 'metric':res})
+        for config_param in self.config_params: 
+            if verbose: 
+                print(config_param)
+            for run in np.arange(n_runs): 
+                if verbose: 
+                    print('.',end='')
+                res = self.run(config_param)
+                run_res = config_param.copy() 
+                run_res.update({'run':run, 'metric':res})
                 runs.append(run_res)
-            print('')
+            if verbose: 
+                print(';')
         return pd.DataFrame(runs)
 
 
-    def run(self, run_param): 
+    def run(self, config_param): 
 
         # separate this run's parameters into distinct sets
-        run_experiment_params = {k: v for k, v in run_param.items() if k in self.experiment_params}
-        run_observer_params = {k: v for k, v in run_param.items() if k in self.observer_params}
-        run_analyser_params = {k: v for k, v in run_param.items() if k in self.analyser_params}
+        config_experiment_params = {k: v for k, v in config_param.items() if k in self.experiment_params}
+        config_observer_params = {k: v for k, v in config_param.items() if k in self.observer_params}
+        config_analyser_params = {k: v for k, v in config_param.items() if k in self.analyser_params}
 
-        exp = self.experiment(**run_experiment_params)
-        obs = self.observer(**run_observer_params)
-        ana = self.analyser(**run_analyser_params)
+        exp = self.experiment(**config_experiment_params)
+        obs = self.observer(**config_observer_params)
+        ana = self.analyser(**config_analyser_params)
 
         responses = obs.respond_to_experiment(exp)
         
