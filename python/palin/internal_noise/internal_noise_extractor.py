@@ -18,10 +18,10 @@ class InternalNoiseExtractor(ABC):
         raise NotImplementedError()
 
     @classmethod
-    def extract_internal_noise(cls,data_df, group_ids, trial_id, feature_id, value_id, response_id, normalize = True):
+    def extract_internal_noise(cls,data_df, group_ids, trial_id, feature_id, value_id, response_id, model_file):
         
         # for each level in group, extract internal_noise
         return data_df.groupby(group_ids).apply(lambda group: cls.extract_single_internal_noise(group, 
-            trial_id, feature_id, value_id, response_id)).reset_index()
+            trial_id, feature_id, value_id, response_id, model_file)).reset_index()
 
     

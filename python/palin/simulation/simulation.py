@@ -115,7 +115,7 @@ class Simulation(ABC):
         
         metrics =  ana.get_metric_names()
         values = ana.analyse(exp, obs, responses)
-
+        
         # return the metrics as a dict of name:value pairs
         results = {}
         for metric,value in zip(metrics,values): 

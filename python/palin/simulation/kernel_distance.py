@@ -9,7 +9,7 @@ class KernelDistance(Analyser):
         self.distance = distance
 
     def get_metric_names(self):
-        return [distance.lower()]
+        return [self.distance.lower()]
         
     def analyse(self, experiment, participant, participant_responses): 
 
@@ -36,7 +36,7 @@ class KernelDistance(Analyser):
         return self.kernel_extractor.normalize_kernel(kernel)
 
     def compute_distance(self, kernel_1, kernel_2): 
-        return me.kernel_distance(kernel_1, kernel_2, type=self.distance)
+        return [me.kernel_distance(kernel_1, kernel_2, type=self.distance)]
 
         
         
