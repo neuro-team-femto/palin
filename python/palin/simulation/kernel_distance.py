@@ -7,6 +7,9 @@ class KernelDistance(Analyser):
     def __init__(self, kernel_extractor, distance='CORR'):
         self.kernel_extractor = kernel_extractor
         self.distance = distance
+
+    def get_metric_names(self):
+        return [distance.lower()]
         
     def analyse(self, experiment, participant, participant_responses): 
 

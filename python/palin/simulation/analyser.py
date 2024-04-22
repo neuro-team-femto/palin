@@ -9,6 +9,10 @@ class Analyser(ABC):
     def analyse(self,experiment, participant, participant_responses): 
         raise NotImplementedError()
 
+    @abstractmethod
+    def get_metric_names(self):
+        raise NotImplementedError()
+
     @classmethod
     def to_df(csl, experiment, responses): 
 
