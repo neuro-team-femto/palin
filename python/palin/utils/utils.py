@@ -60,8 +60,8 @@ def compute_prob_agreement(data_df, session_identifiers=['experimentor', 'type',
     trial_responses_df = trial_responses_df.join(trial_responses_df[response_identifier].str.split(expand=True).rename(columns={0: '%s1' % response_identifier, 1: '%s2' % response_identifier}))
     
     #clean the response data by removing any non-numeric characters
-    trial_responses_df['%s1' % response_identifier] = trial_responses_df['%s1' % response_identifier].str.replace(r'\D', '', regex=True))
-    trial_responses_df['%s2' % response_identifier] = trial_responses_df['%s2' % response_identifier].str.replace(r'\D', '', regex=True))
+    trial_responses_df['%s1' % response_identifier] = trial_responses_df['%s1' % response_identifier].str.replace(r'\D', '', regex=True)
+    trial_responses_df['%s2' % response_identifier] = trial_responses_df['%s2' % response_identifier].str.replace(r'\D', '', regex=True)
     
     # drop the original response column
     trial_responses_df = trial_responses_df.drop(columns=[response_identifier])
