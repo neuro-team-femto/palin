@@ -1,5 +1,5 @@
 
-from .analyser import Analyser
+from ..analyser import Analyser
 import numpy as np
 
 class InternalNoiseValue(Analyser): 

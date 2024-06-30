@@ -1,6 +1,6 @@
 
 import numpy as np
-from .observer import Observer
+from ..observer import Observer
 
 class LinearObserver(Observer):
 

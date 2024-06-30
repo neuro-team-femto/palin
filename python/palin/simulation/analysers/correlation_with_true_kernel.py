@@ -1,5 +1,5 @@
 
-from .analyser import Analyser
+from ..analyser import Analyser
 from palin.metrics import metrics as me
 
 class CorrelationWithTrueKernel(Analyser): 

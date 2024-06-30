@@ -12,13 +12,12 @@ import os.path
 import warnings
 import ast
 from .internal_noise_extractor import InternalNoiseExtractor
-from ..simulation.linear_observer import LinearObserver
-from ..simulation.simple_experiment import SimpleExperiment
+from ..simulation.observers.linear_observer import LinearObserver
+from ..simulation.experiments.simple_experiment import SimpleExperiment
 from ..simulation.trial import Int2Trial, Int1Trial 
-from ..simulation.double_pass_experiment import DoublePassExperiment
+from ..simulation.experiments.double_pass_experiment import DoublePassExperiment
 from ..simulation.trial import Int2Trial, Int1Trial 
-from ..simulation.linear_observer import LinearObserver
-from ..simulation import double_pass_statistics as dps
+from ..simulation.analysers.double_pass_statistics import DoublePassStatistics
 from ..simulation.simulation import Simulation as Sim
 
 
@@ -149,12 +148,12 @@ class DoublePass(InternalNoiseExtractor):
 
         sim = Sim(DoublePassExperiment, experiment_params,
               LinearObserver, observer_params, 
-              dps.DoublePassStatistics, analyser_params)
+              DoublePassStatistics, analyser_params)
 
         sim_df = sim.run_all(n_runs=n_runs, verbose=True)
 
         # average measures over all runs
-        sim_df.groupby(['internal_noise_std','criteria'])[dps.DoublePassStatistics.get_metric_names()].mean()
+        sim_df.groupby(['internal_noise_std','criteria'])[DoublePassStatistics.get_metric_names()].mean()
         return sim_df
 
        

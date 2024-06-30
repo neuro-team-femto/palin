@@ -1,5 +1,5 @@
 
-from .analyser import Analyser
+from ..analyser import Analyser
 from palin.internal_noise.double_pass import DoublePass
 
 class DoublePassStatistics(Analyser): 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from .experiment import Experiment
+from ..experiment import Experiment
 
 class SimpleExperiment(Experiment): 
 
