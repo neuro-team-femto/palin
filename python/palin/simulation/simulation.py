@@ -6,6 +6,33 @@ from .observer import Observer
 from .experiment import Experiment
 from .analyser import Analyser
 
+import dill as pickle
+
+import multiprocessing as mp
+import tqdm
+
+#import multiprocess as mp
+#from multiprocess import Pool
+import copy
+
+#from parallelbar import progress_map
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+#import loky
+
+import os
+
+from functools import partial
+
+def call_it(instance,name): #, args=(), kwargs=None):
+    "indirect caller for instance methods and multiprocessing"
+    #if kwargs is None:
+    #    kwargs = {}
+    return str(getattr(instance,'config_params'))
+    #    return getattr(instance, name)(*args, **kwargs)
+
+dummy ={'what':'the','fuck:':'process'}
+
+
 class Simulation(ABC): 
     '''
     Class that implements a simulation, i.e. a range of simulated @Observers that respond to @Experiments and whose results are analysed with an @Analyser.
@@ -66,8 +93,10 @@ class Simulation(ABC):
         keys, values = zip(*sim_params.items())
         return [dict(zip(keys, v)) for v in itertools.product(*values)]
 
+    def run_all(self, n_runs, verbose=True):
+        return self.run_all_single_thread(n_runs, verbose)
 
-    def run_all(self, n_runs, verbose=True): 
+    def run_all_single_thread(self, n_runs, verbose=True): 
         '''
         Run all configs stored in self.config_params. Each config is run n_runs times, and separate results are stored for each run. 
         Each run instanciates one Observer, one Experiment and one Analyser (see @run).
@@ -83,15 +112,60 @@ class Simulation(ABC):
             for run in np.arange(n_runs): 
                 if verbose: 
                     print('.',end='')
-                # store run's config, run_number and results as a dict
-                run_res = config_param.copy() 
-                run_res.update({'run':run})               
-                results = self.run(config_param) 
-                run_res.update(results)
-                runs.append(run_res)
+                # store run's config, run_number and results  as a dict
+                run_results = config_param.copy()
+                run_results.update({'run':run})
+                run_results = self.run(run_results)                
+                runs.append(run_results)
             if verbose: 
                 print(';')
         return pd.DataFrame(runs)
+
+
+
+    def run_all_multi_thread(self, n_runs, verbose=True): 
+        '''
+        Run all configs stored in self.config_params. Each config is run n_runs times, and separate results are stored for each run. 
+        Each run instanciates one Observer, one Experiment and one Analyser (see @run).
+        Results are returned into a dataframe; each row is a run, and columns store config parameters, run number and analyser results. 
+        '''
+        #if verbose: 
+        #    print("Running %d configs"%len(self.config_params))
+
+        #with ProcessPoolExecutor(max_workers=4) as pool:
+        #    results = list(pool.map(child_process, runs))
+
+        #return pd.DataFrame(runs)
+
+
+        #runs = np.repeat(self.config_params, n_runs)
+
+        
+        #data = deepcopy(self.config_params)
+
+        from palin.internal_noise.double_pass import DoublePass
+        from palin.simulation.trial import Int2Trial
+
+        results = []
+
+        with mp.Pool(processes=mp.cpu_count()) as pool: 
+
+            tasks = [Int2Trial, DoublePass]
+            for result in tqdm.tqdm(pool.imap_unordered(str, tasks), total=len(tasks)): 
+                results.append(result)
+
+
+        #results = progress_map(str, self.config_params, 
+        #    n_cpu = mp.cpu_count(),
+        #    process_timeout=None, 
+        #    error_behavior='coerce', 
+        #    return_failed_tasks=True,
+        #    executor='processes')
+
+        return results
+
+        
+    
 
 
     def run(self, config_param): 
@@ -99,7 +173,7 @@ class Simulation(ABC):
         Perform individual run for a config defined by config_param. 
         Each run instanciates one Observer, one Experiment and one Analyser. 
         The observer responds to the experiment, and their responses are analysed with the analyser. 
-        Results are then returned in a dictionary of metric_name:value pairs. 
+        Results are then returned in a dictionary of metric_name:value pairs, which include a copy of the config parameters. 
         '''
 
         # separate this run's parameters into distinct sets
@@ -117,7 +191,7 @@ class Simulation(ABC):
         values = ana.analyse(exp, obs, responses)
         
         # return the metrics as a dict of name:value pairs
-        results = {}
+        results = config_param
         for metric,value in zip(metrics,values): 
             results[metric] = value
         return results
