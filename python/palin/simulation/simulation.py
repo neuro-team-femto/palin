@@ -6,31 +6,11 @@ from .observer import Observer
 from .experiment import Experiment
 from .analyser import Analyser
 
-import dill as pickle
-
 import multiprocessing as mp
-import tqdm
-
-#import multiprocess as mp
-#from multiprocess import Pool
-import copy
-
-#from parallelbar import progress_map
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-#import loky
+from tqdm import tqdm
 
 import os
 
-from functools import partial
-
-def call_it(instance,name): #, args=(), kwargs=None):
-    "indirect caller for instance methods and multiprocessing"
-    #if kwargs is None:
-    #    kwargs = {}
-    return str(getattr(instance,'config_params'))
-    #    return getattr(instance, name)(*args, **kwargs)
-
-dummy ={'what':'the','fuck:':'process'}
 
 
 class Simulation(ABC): 
@@ -93,76 +73,72 @@ class Simulation(ABC):
         keys, values = zip(*sim_params.items())
         return [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-    def run_all(self, n_runs, verbose=True):
-        return self.run_all_single_thread(n_runs, verbose)
-
-    def run_all_single_thread(self, n_runs, verbose=True): 
+    def run_all(self, n_runs, multiprocess=True):
         '''
         Run all configs stored in self.config_params. Each config is run n_runs times, and separate results are stored for each run. 
         Each run instanciates one Observer, one Experiment and one Analyser (see @run).
         Results are returned into a dataframe; each row is a run, and columns store config parameters, run number and analyser results. 
+        '''
+        if multiprocess:
+            return self.run_all_multi_process(n_runs)
+        else:
+            return self.run_all_single_process(n_runs)
+
+
+    def repeat_configs(self,n_runs): 
+        '''
+        n_repeats the self.config_params list by duplicating each config n_runs time, and including a 'run' field [0...n_runs-1] in each config
+        '''
+        # convert list of configs to dataframe
+        configs_df = pd.DataFrame(self.config_params)
+        
+        # add an id to each original config
+        configs_df = configs_df.reset_index(names='config')
+        
+        # repeat each config n_runs time, and add a run counter
+        runs_df = pd.DataFrame(np.repeat(configs_df.values,n_runs, axis=0), columns=configs_df.columns)
+        runs_df['run'] = 1
+        runs_df['run'] = runs_df.groupby('config').run.cumsum() - 1
+        
+        # convert back to list of dicts
+        runs = runs_df.to_dict('records')
+
+        return runs
+
+
+    def run_all_single_process(self, n_runs): 
+        '''
+        Single process implementation of run_all. Slow, but simple.
         '''
         if verbose: 
             print("Running %d configs"%len(self.config_params))
 
-        runs = []
-        for index, config_param in enumerate(self.config_params): 
-            if verbose: 
-                print(str(index) + " : " +str(config_param))
-            for run in np.arange(n_runs): 
-                if verbose: 
-                    print('.',end='')
-                # store run's config, run_number and results  as a dict
-                run_results = config_param.copy()
-                run_results.update({'run':run})
-                run_results = self.run(run_results)                
-                runs.append(run_results)
-            if verbose: 
-                print(';')
+        runs = self.repeat_configs(n_runs)
+        run_results = []
+
+        progress_runs = tqdm(runs)
+        for run in progress_runs:
+            run_result = self.run(run)
+            progress_runs.set_description("Processing config %d run %d" %(run['config'],run['run']))
+            run_results.append(run_result)
+
         return pd.DataFrame(runs)
 
 
 
-    def run_all_multi_thread(self, n_runs, verbose=True): 
+    def run_all_multi_process(self, n_runs): 
         '''
-        Run all configs stored in self.config_params. Each config is run n_runs times, and separate results are stored for each run. 
-        Each run instanciates one Observer, one Experiment and one Analyser (see @run).
-        Results are returned into a dataframe; each row is a run, and columns store config parameters, run number and analyser results. 
+        Multiprocess implementation of run_all. Fast, possibly brittle depending on OS. 
         '''
-        #if verbose: 
-        #    print("Running %d configs"%len(self.config_params))
-
-        #with ProcessPoolExecutor(max_workers=4) as pool:
-        #    results = list(pool.map(child_process, runs))
-
-        #return pd.DataFrame(runs)
-
-
-        #runs = np.repeat(self.config_params, n_runs)
-
+        runs = self.repeat_configs(n_runs)
+        run_results = []
         
-        #data = deepcopy(self.config_params)
-
-        from palin.internal_noise.double_pass import DoublePass
-        from palin.simulation.trial import Int2Trial
-
-        results = []
-
         with mp.Pool(processes=mp.cpu_count()) as pool: 
 
-            tasks = [Int2Trial, DoublePass]
-            for result in tqdm.tqdm(pool.imap_unordered(str, tasks), total=len(tasks)): 
-                results.append(result)
+            for run_result in tqdm(pool.imap_unordered(self.run, runs), total=len(runs)): 
+                run_results.append(run_result)
 
-
-        #results = progress_map(str, self.config_params, 
-        #    n_cpu = mp.cpu_count(),
-        #    process_timeout=None, 
-        #    error_behavior='coerce', 
-        #    return_failed_tasks=True,
-        #    executor='processes')
-
-        return results
+        return pd.DataFrame(run_results)
 
         
     
