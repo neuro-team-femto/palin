@@ -6,6 +6,13 @@ from .observer import Observer
 from .experiment import Experiment
 from .analyser import Analyser
 
+import multiprocessing as mp
+from tqdm import tqdm
+
+import os
+
+
+
 class Simulation(ABC): 
     '''
     Class that implements a simulation, i.e. a range of simulated @Observers that respond to @Experiments and whose results are analysed with an @Analyser.
@@ -66,32 +73,75 @@ class Simulation(ABC):
         keys, values = zip(*sim_params.items())
         return [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-
-    def run_all(self, n_runs, verbose=True): 
+    def run_all(self, n_runs, multiprocess=True):
         '''
         Run all configs stored in self.config_params. Each config is run n_runs times, and separate results are stored for each run. 
         Each run instanciates one Observer, one Experiment and one Analyser (see @run).
         Results are returned into a dataframe; each row is a run, and columns store config parameters, run number and analyser results. 
         '''
+        if multiprocess:
+            return self.run_all_multi_process(n_runs)
+        else:
+            return self.run_all_single_process(n_runs)
+
+
+    def repeat_configs(self,n_runs): 
+        '''
+        n_repeats the self.config_params list by duplicating each config n_runs time, and including a 'run' field [0...n_runs-1] in each config
+        '''
+        # convert list of configs to dataframe
+        configs_df = pd.DataFrame(self.config_params)
+        
+        # add an id to each original config
+        configs_df = configs_df.reset_index(names='config')
+        
+        # repeat each config n_runs time, and add a run counter
+        runs_df = pd.DataFrame(np.repeat(configs_df.values,n_runs, axis=0), columns=configs_df.columns)
+        runs_df['run'] = 1
+        runs_df['run'] = runs_df.groupby('config').run.cumsum() - 1
+        
+        # convert back to list of dicts
+        runs = runs_df.to_dict('records')
+
+        return runs
+
+
+    def run_all_single_process(self, n_runs): 
+        '''
+        Single process implementation of run_all. Slow, but simple.
+        '''
         if verbose: 
             print("Running %d configs"%len(self.config_params))
 
-        runs = []
-        for index, config_param in enumerate(self.config_params): 
-            if verbose: 
-                print(str(index) + " : " +str(config_param))
-            for run in np.arange(n_runs): 
-                if verbose: 
-                    print('.',end='')
-                # store run's config, run_number and results as a dict
-                run_res = config_param.copy() 
-                run_res.update({'run':run})               
-                results = self.run(config_param) 
-                run_res.update(results)
-                runs.append(run_res)
-            if verbose: 
-                print(';')
+        runs = self.repeat_configs(n_runs)
+        run_results = []
+
+        progress_runs = tqdm(runs)
+        for run in progress_runs:
+            run_result = self.run(run)
+            progress_runs.set_description("Processing config %d run %d" %(run['config'],run['run']))
+            run_results.append(run_result)
+
         return pd.DataFrame(runs)
+
+
+
+    def run_all_multi_process(self, n_runs): 
+        '''
+        Multiprocess implementation of run_all. Fast, possibly brittle depending on OS. 
+        '''
+        runs = self.repeat_configs(n_runs)
+        run_results = []
+        
+        with mp.Pool(processes=mp.cpu_count()) as pool: 
+
+            for run_result in tqdm(pool.imap_unordered(self.run, runs), total=len(runs)): 
+                run_results.append(run_result)
+
+        return pd.DataFrame(run_results)
+
+        
+    
 
 
     def run(self, config_param): 
@@ -99,7 +149,7 @@ class Simulation(ABC):
         Perform individual run for a config defined by config_param. 
         Each run instanciates one Observer, one Experiment and one Analyser. 
         The observer responds to the experiment, and their responses are analysed with the analyser. 
-        Results are then returned in a dictionary of metric_name:value pairs. 
+        Results are then returned in a dictionary of metric_name:value pairs, which include a copy of the config parameters. 
         '''
 
         # separate this run's parameters into distinct sets
@@ -117,7 +167,7 @@ class Simulation(ABC):
         values = ana.analyse(exp, obs, responses)
         
         # return the metrics as a dict of name:value pairs
-        results = {}
+        results = config_param
         for metric,value in zip(metrics,values): 
             results[metric] = value
         return results
