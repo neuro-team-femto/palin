@@ -12,13 +12,6 @@ import os.path
 import warnings
 import ast
 from .internal_noise_extractor import InternalNoiseExtractor
-from ..simulation.observers.linear_observer import LinearObserver
-from ..simulation.experiments.simple_experiment import SimpleExperiment
-from ..simulation.trial import Int2Trial, Int1Trial 
-from ..simulation.experiments.double_pass_experiment import DoublePassExperiment
-from ..simulation.trial import Int2Trial, Int1Trial 
-from ..simulation.analysers import double_pass_statistics as dps #import module instead of class to avoid circular import
-from ..simulation.simulation import Simulation as Sim
 
 
 class DoublePass(InternalNoiseExtractor):
@@ -136,6 +129,14 @@ class DoublePass(InternalNoiseExtractor):
         '''
         print('Rebuilding double-pass model')
 
+        # deferred imports of the simulation modules, to avoid circular imports
+        from ..simulation.observers.linear_observer import LinearObserver
+        from ..simulation.trial import Int2Trial 
+        from ..simulation.experiments.double_pass_experiment import DoublePassExperiment
+        from ..simulation.trial import Int2Trial, Int1Trial 
+        from ..simulation.analysers import DouplePassStatistics
+        from ..simulation.simulation import Simulation as Sim
+
         observer_params = {'kernel':[[1]],
                    'internal_noise_std':internal_noise_range, 
                   'criteria':criteria_range}
@@ -148,12 +149,12 @@ class DoublePass(InternalNoiseExtractor):
 
         sim = Sim(DoublePassExperiment, experiment_params,
               LinearObserver, observer_params, 
-              dps.DoublePassStatistics, analyser_params)
+              DoublePassStatistics, analyser_params)
 
         sim_df = sim.run_all(n_runs=n_runs, verbose=True)
 
         # average measures over all runs
-        sim_df.groupby(['internal_noise_std','criteria'])[dps.DoublePassStatistics.get_metric_names()].mean()
+        sim_df.groupby(['internal_noise_std','criteria'])[DoublePassStatistics.get_metric_names()].mean()
         return sim_df
 
        
