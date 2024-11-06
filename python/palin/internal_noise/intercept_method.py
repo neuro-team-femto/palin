@@ -13,6 +13,7 @@ import warnings
 import ast
 from .agreement_method import AgreementMethod
 from itertools import combinations
+from abc import ABC,abstractmethod
 
 class InterceptMethod(AgreementMethod):
     ''' 
@@ -25,20 +26,21 @@ class InterceptMethod(AgreementMethod):
     def __str__(self): 
         return 'Intercept method'
 
-    @classmethod
-    def extract_single_internal_noise(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, model_file, kernel_extractor = None, rebuild_model=False, internal_noise_range=np.arange(0,5,.1),criteria_range=np.arange(-5,5,1), n_repeated_trials=100, n_runs=10):
+     @classmethod
+    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, kernel_extractor=None):
         '''
-        Extracts internal noise and criteria for a single observer/session. 
-        To extract for several users/sessions, use the superclass's method extract_internal_noise
+        Compute probabilities over non-double pass trials
         '''
-        # compute probability of agreement, using the intercept method over all trials (regardless of double pass)
-        prob_agree = cls.compute_prob_agreement(data_df, trial_id=trial_id, stim_id= stim_id, value_id= value_id, response_id=response_id, kernel_extractor=kernel_extractor)
-        # compute probability of choosing first response option over all trials (regardless of double pass)
-        prob_first = cls.compute_prob_first(data_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id)
+        double_pass_id = 'double_pass_id' # column by which to identify double pass trials
+        # index double pass trials
+        data_df = cls.index_double_pass_trials(data_df, trial_id=trial_id, value_id = value_id, double_pass_id = double_pass_id)
+        single_pass_df = data_df[data_df[double_pass_id].isna()]
 
-        internal_noise, criteria = cls.estimate_noise_criteria(prob_agree, prob_first, model_file, rebuild_model, internal_noise_range,criteria_range, n_repeated_trials, n_runs)
-
-        return internal_noise,criteria
+        # compute probability of agreement over double pass
+        prob_agree = cls.compute_prob_agreement(single_pass_df, trial_id=trial_id, response_id=response_id, double_pass_id=double_pass_id)
+        # compute probability of choosing first response option
+        prob_first = cls.compute_prob_first(single_pass_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id, double_pass_id=double_pass_id)
+        return prob_agree, prob_first
 
     @classmethod
     def compute_prob_agreement(cls,data_df, trial_id='trial', stim_id= 'stim', feature_id= 'segment', value_id = 'value', response_id='response', kernel_extractor=None):

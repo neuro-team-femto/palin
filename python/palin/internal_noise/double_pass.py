@@ -24,7 +24,7 @@ class DoublePass(AgreementMethod):
         return 'Double-Pass method'
 
     @classmethod
-    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id):
+    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, kernel_extractor=None):
         '''
         Compute probabilities over double pass trials
         '''

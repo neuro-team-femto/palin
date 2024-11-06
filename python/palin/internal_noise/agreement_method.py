@@ -12,8 +12,7 @@ import os.path
 import warnings
 import ast
 from .internal_noise_extractor import InternalNoiseExtractor
-from abc import abstractmethod
-
+from abc import ABC,abstractmethod
 
 class AgreementMethod(InternalNoiseExtractor):
     ''' 
@@ -31,16 +30,16 @@ class AgreementMethod(InternalNoiseExtractor):
         Extracts internal noise and criteria for a single observer/session. 
         To extract for several users/sessions, use the superclass's method extract_internal_noise
         '''
-        prob_agree, prob_first = compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id)
+        prob_agree, prob_first = cls.compute_probabilities(data_df, trial_id, stim_id, feature_id, value_id, response_id)
 
         internal_noise, criteria = cls.estimate_noise_criteria(prob_agree, prob_first, model_file, rebuild_model, internal_noise_range,criteria_range, n_repeated_trials, n_runs)
 
         return internal_noise,criteria
 
     @classmethod
-    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id):
+    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id,kernel_extractor=None):
         # compute probability of agreement, using the intercept method over all trials (regardless of double pass)
-        prob_agree = cls.compute_prob_agreement(data_df, trial_id=trial_id, stim_id= stim_id, value_id= value_id, response_id=response_id)
+        prob_agree = cls.compute_prob_agreement(data_df, trial_id=trial_id, stim_id= stim_id, feature_id= feature_id, value_id= value_id, response_id=response_id, kernel_extractor=kernel_extractor)
         # compute probability of choosing first response option over all trials (regardless of double pass)
         prob_first = cls.compute_prob_first(data_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id)
         return prob_agree, prob_first
@@ -89,7 +88,7 @@ class AgreementMethod(InternalNoiseExtractor):
         from ..simulation.trial import Int2Trial 
         from ..simulation.experiments.double_pass_experiment import DoublePassExperiment
         from ..simulation.trial import Int2Trial, Int1Trial 
-        from ..simulation.analysers import DouplePassStatistics
+        from ..simulation.analysers.double_pass_statistics import DouplePassStatistics
         from ..simulation.simulation import Simulation as Sim
 
         observer_params = {'kernel':[[1]],
