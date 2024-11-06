@@ -24,10 +24,9 @@ class DoublePass(AgreementMethod):
         return 'Double-Pass method'
 
     @classmethod
-    def extract_single_internal_noise(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, model_file, rebuild_model=False, internal_noise_range=np.arange(0,5,.1),criteria_range=np.arange(-5,5,1), n_repeated_trials=100, n_runs=10):
+    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id):
         '''
-        Extracts internal noise and criteria for a single observer/session. 
-        To extract for several users/sessions, use the superclass's method extract_internal_noise
+        Compute probabilities over double pass trials
         '''
         double_pass_id = 'double_pass_id' # column by which to identify double pass trials
         # index double pass trials
@@ -36,10 +35,7 @@ class DoublePass(AgreementMethod):
         prob_agree = cls.compute_prob_agreement(data_df, trial_id=trial_id, response_id=response_id, double_pass_id=double_pass_id)
         # compute probability of choosing first response option
         prob_first = cls.compute_prob_first(data_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id, double_pass_id=double_pass_id)
-
-        internal_noise, criteria = cls.estimate_noise_criteria(prob_agree, prob_first, model_file, rebuild_model, internal_noise_range,criteria_range, n_repeated_trials, n_runs)
-
-        return internal_noise,criteria
+        return prob_agree, prob_first
 
     @classmethod
     def index_double_pass_trials(cls, data_df, trial_id='trial',double_pass_id='double_pass_id',value_id='value'):
