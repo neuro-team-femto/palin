@@ -26,7 +26,7 @@ class InterceptMethod(AgreementMethod):
     def __str__(self): 
         return 'Intercept method'
 
-     @classmethod
+    @classmethod
     def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, kernel_extractor=None):
         '''
         Compute probabilities over non-double pass trials
@@ -34,16 +34,20 @@ class InterceptMethod(AgreementMethod):
         double_pass_id = 'double_pass_id' # column by which to identify double pass trials
         # index double pass trials
         data_df = cls.index_double_pass_trials(data_df, trial_id=trial_id, value_id = value_id, double_pass_id = double_pass_id)
-        single_pass_df = data_df[data_df[double_pass_id].isna()]
 
-        # compute probability of agreement over double pass
-        prob_agree = cls.compute_prob_agreement(single_pass_df, trial_id=trial_id, response_id=response_id, double_pass_id=double_pass_id)
+        # Fix me: we should't remove all double_pass, but only the second occurrence (think 100+100 -> 100)
+        # single_pass_df = data_df[data_df[double_pass_id].isna()]
+        single_pass_df = data_df
+
+        
+        # compute probability of agreement
+        prob_agree = cls.compute_prob_agreement(single_pass_df, trial_id=trial_id, response_id=response_id, kernel_extractor=kernel_extractor)
         # compute probability of choosing first response option
-        prob_first = cls.compute_prob_first(single_pass_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id, double_pass_id=double_pass_id)
+        prob_first = cls.compute_prob_first(single_pass_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id)
         return prob_agree, prob_first
 
     @classmethod
-    def compute_prob_agreement(cls,data_df, trial_id='trial', stim_id= 'stim', feature_id= 'segment', value_id = 'value', response_id='response', kernel_extractor=None):
+    def compute_prob_agreement(cls,data_df, trial_id='trial', stim_id= 'stim', feature_id= 'feature', value_id = 'value', response_id='response', kernel_extractor=None):
         '''
         Estimates the probability of giving the same response over repeated trials
         by computing the intercept of the probability over pairs of trials ranked by distance
@@ -99,17 +103,3 @@ class InterceptMethod(AgreementMethod):
         except RuntimeError: 
             print('error fitting polynomial')
             return np.nan
-    
-    @classmethod
-    def compute_prob_first(cls, data_df, trial_id='trial', response_id='response', stim_id='stim_order'):
-        '''
-        Computes probability to choose the first response option (i.e. a measure of response bias) across all trials
-        ''' 
-    
-        # compute first response for each trial
-        def first_option(group, stim_id, response_id):    
-            resp = group.sort_values(by=stim_id)[response_id].iloc[0]
-            return resp==1
-        firsts = data_df.groupby(trial_id).apply(lambda group: first_option(group, stim_id, response_id))
-    
-        return firsts.sum()/len(firsts)
