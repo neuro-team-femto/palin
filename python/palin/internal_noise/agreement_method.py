@@ -87,6 +87,19 @@ class AgreementMethod(InternalNoiseExtractor):
         data_df= pd.merge(data_df, double_pass_df[[trial_id, double_pass_id]], 
                           how="left", on=trial_id)
         return data_df  
+
+    @classmethod 
+    def keep_single_pass(cls, data_df, trial_id='trial', double_pass_id = 'double_pass_id'): 
+        '''
+        Utility to keep only non double_pass trials, or the first occurrence of double_pass trials, in a df already indexed by index_double_pass_trials
+        '''
+        if double_pass_id not in data_df: 
+            return data_df
+        first_pass_trials = data_df.groupby([double_pass_id])[trial_id].unique().reset_index()
+        first_pass_trials[trial_id] = first_pass_trials[trial_id].apply(lambda x: np.min(x)) # first occurrence of all non Nan double_pass
+        single_pass_df = data_df[(data_df[double_pass_id].isna())
+                  | (data_df[trial_id].isin(first_pass_trials[trial_id].to_list()))]
+        return single_pass_df
     
     @classmethod
     def estimate_noise_criteria(cls,prob_agree, prob_first, model_file,rebuild_model=False, internal_noise_range=np.arange(0,5,.1),criteria_range=np.arange(-5,5,1), n_repeated_trials=100, n_runs=10): 

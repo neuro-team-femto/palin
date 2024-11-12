@@ -35,10 +35,8 @@ class InterceptMethod(AgreementMethod):
         # index double pass trials
         data_df = cls.index_double_pass_trials(data_df, trial_id=trial_id, value_id = value_id, double_pass_id = double_pass_id)
 
-        # Fix me: we should't remove all double_pass, but only the second occurrence (think 100+100 -> 100)
-        # single_pass_df = data_df[data_df[double_pass_id].isna()]
-        single_pass_df = data_df
-
+        # Keep only non double_pass trials, or the first occurrence of double_pass trials
+        single_pass_df = cls.keep_single_pass(data_df, trial_id=trial_id, double_pass_id = double_pass_id)
         
         # compute probability of agreement
         prob_agree = cls.compute_prob_agreement(single_pass_df, trial_id=trial_id, response_id=response_id, kernel_extractor=kernel_extractor)
