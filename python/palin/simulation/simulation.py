@@ -11,8 +11,6 @@ from tqdm import tqdm
 
 import os
 
-
-
 class Simulation(ABC): 
     '''
     Class that implements a simulation, i.e. a range of simulated @Observers that respond to @Experiments and whose results are analysed with an @Analyser.
@@ -110,8 +108,8 @@ class Simulation(ABC):
         '''
         Single process implementation of run_all. Slow, but simple.
         '''
-        if verbose: 
-            print("Running %d configs"%len(self.config_params))
+        #if verbose: 
+        #    print("Running %d configs"%len(self.config_params))
 
         runs = self.repeat_configs(n_runs)
         run_results = []

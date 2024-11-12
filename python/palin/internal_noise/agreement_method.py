@@ -118,6 +118,7 @@ class AgreementMethod(InternalNoiseExtractor):
         # find internal_noise & criteria settings that minimizes distance to prob_agree and prob_first 
         model_df['dist'] = model_df.apply(lambda row: (row.prob_agree-prob_agree)**2 + (row.prob_first-prob_first)**2, axis=1)
 
+        # todo: consider putting a prior on small internal_noise and small criteria
         best_match = model_df[model_df.dist==model_df.dist.min()]
 
         return best_match.internal_noise_std.iloc[0], best_match.criteria.iloc[0]
@@ -128,14 +129,14 @@ class AgreementMethod(InternalNoiseExtractor):
         Build a model that associates a range of internal noise and criteria values with their corresponding (simulated) prob_agree and prob_first.
         This uses a simulated LinearObserver, and returns the model as a dataframe 
         '''
-        print('Rebuilding double-pass model')
+        print('Building double-pass model')
 
         # deferred imports of the simulation modules, to avoid circular imports
         from ..simulation.observers.linear_observer import LinearObserver
         from ..simulation.trial import Int2Trial 
         from ..simulation.experiments.double_pass_experiment import DoublePassExperiment
         from ..simulation.trial import Int2Trial, Int1Trial 
-        from ..simulation.analysers.double_pass_statistics import DouplePassStatistics
+        from ..simulation.analysers.double_pass_statistics import DoublePassStatistics
         from ..simulation.simulation import Simulation as Sim
 
         observer_params = {'kernel':[[1]],
@@ -152,7 +153,7 @@ class AgreementMethod(InternalNoiseExtractor):
               LinearObserver, observer_params, 
               DoublePassStatistics, analyser_params)
 
-        sim_df = sim.run_all(n_runs=n_runs, verbose=True)
+        sim_df = sim.run_all(n_runs=n_runs)
 
         # average measures over all runs
         sim_df.groupby(['internal_noise_std','criteria'])[DoublePassStatistics.get_metric_names()].mean()
