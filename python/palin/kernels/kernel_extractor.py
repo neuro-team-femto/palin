@@ -14,7 +14,7 @@ class KernelExtractor(ABC):
 
     @classmethod
     @abstractmethod
-    def extract_single_kernel(cls,data_df, feature_id = 'feature', value_id = 'value', response_id = 'response'): 
+    def extract_single_kernel(cls,data_df, feature_id = 'feature', value_id = 'value', response_id = 'response', **kwargs): 
         raise NotImplementedError()
 
     @classmethod

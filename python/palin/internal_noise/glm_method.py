@@ -21,7 +21,7 @@ class GLMMethod(InternalNoiseExtractor):
         return 'GLM method'
 
     @classmethod
-    def extract_single_internal_noise(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, model_file, rebuild_model=False, internal_noise_range=np.arange(0,5,.1),criteria_range=np.arange(-5,5,1), n_repeated_trials=100, n_runs=10):
+    def extract_single_internal_noise(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs):
         '''
         Extracts internal noise for a single observer/session, using CI from a GLM fit. 
         '''

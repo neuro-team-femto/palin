@@ -12,7 +12,7 @@ from .kernel_extractor import KernelExtractor
 class GLMKernel(KernelExtractor):
 
     @classmethod
-    def extract_single_kernel(cls, data_df, feature_id = 'feature', value_id = 'value', response_id = 'response'):
+    def extract_single_kernel(cls, data_df, feature_id = 'feature', value_id = 'value', response_id = 'response', **kwargs):
     '''
     Extracts kernel by fitting a GLM to data_df and returning the GLM weights. 
     Returns a single kernel as a dataframe with feature and kernel_value

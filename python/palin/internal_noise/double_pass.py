@@ -24,7 +24,7 @@ class DoublePass(AgreementMethod):
         return 'Double-Pass method'
 
     @classmethod
-    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, kernel_extractor=None):
+    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs):
         '''
         Compute probabilities over double pass trials
         '''
@@ -34,9 +34,9 @@ class DoublePass(AgreementMethod):
         double_pass_df = double_pass_df[double_pass_df[double_pass_id].notna()]
 
         # compute probability of agreement over double pass
-        prob_agree = cls.compute_prob_agreement(double_pass_df, trial_id=trial_id, response_id=response_id, double_pass_id=double_pass_id)
+        prob_agree = cls.compute_prob_agreement(double_pass_df, trial_id=trial_id, response_id=response_id, double_pass_id='double_pass_id')
         # compute probability of choosing first response option
-        prob_first = cls.compute_prob_first(double_pass_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id)
+        prob_first = cls.compute_prob_first(double_pass_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id, **kwargs)
         return prob_agree, prob_first
 
     @classmethod
@@ -44,6 +44,7 @@ class DoublePass(AgreementMethod):
         '''
         Computes the probability of giving the same response over all pairs of repeated trials (as identified by double_pass_id, see index_double_pass_trials)
         ''' 
+
         # compute agreements for each double_pass trial
         def same_answer(group, trial_id, response_id):    
             d = group.groupby(trial_id).agg({response_id: lambda group: tuple(group)}).reset_index()

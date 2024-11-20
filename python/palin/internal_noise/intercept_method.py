@@ -27,19 +27,22 @@ class InterceptMethod(AgreementMethod):
         return 'Intercept method'
 
     @classmethod
-    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, kernel_extractor=None):
+    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs):
         '''
         Compute probabilities over non-double pass trials
         '''
-        double_pass_id = 'double_pass_id' # column by which to identify double pass trials
-        # index double pass trials
-        data_df = cls.index_double_pass_trials(data_df, trial_id=trial_id, value_id = value_id, double_pass_id = double_pass_id)
+
+        if 'kernel_extractor' not in kwargs:
+            raise TypeError('InterceptMethod missing required argument kernel_extractor')
 
         # Keep only non double_pass trials, or the first occurrence of double_pass trials
+        double_pass_id = 'double_pass_id' # column by which to identify double pass trials
+        data_df = cls.index_double_pass_trials(data_df, trial_id=trial_id, value_id = value_id, double_pass_id = double_pass_id)
         single_pass_df = cls.keep_single_pass(data_df, trial_id=trial_id, double_pass_id = double_pass_id)
         
         # compute probability of agreement
-        prob_agree = cls.compute_prob_agreement(single_pass_df, trial_id=trial_id, response_id=response_id, kernel_extractor=kernel_extractor)
+        prob_agree = cls.compute_prob_agreement(single_pass_df, trial_id=trial_id, 
+            response_id=response_id, feature_id= 'feature', value_id = 'value', kernel_extractor=kwargs['kernel_extractor'])
         # compute probability of choosing first response option
         prob_first = cls.compute_prob_first(single_pass_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id)
         return prob_agree, prob_first
@@ -51,7 +54,7 @@ class InterceptMethod(AgreementMethod):
         by computing the intercept of the probability over pairs of trials ranked by distance
         has the option to compute distance as raw stimulus difference, or difference projected on kernel (provide a kernel_extractor other than None)
         '''
-        
+
         # pivot data to have one entry per trials (instead of n_features entries) 
         trials_df = data_df.groupby([trial_id,stim_id]).agg({value_id:list, response_id:'first'}).reset_index()
         trials_df[value_id] = trials_df[value_id].apply(lambda x: np.array(x))
@@ -92,8 +95,8 @@ class InterceptMethod(AgreementMethod):
             labels=False)
         bins = bins + 1 # increment all bins by 1
         bins = bins.fillna(0) # and give bin 0 to all that are < min_non_null 
-        combinations_df.groupby(bins).agree.mean().reset_index()
-   
+        combinations_df = combinations_df.groupby(bins).agree.mean().reset_index()
+
         # return intercept of polynomial fit
         try:
             poly = np.poly1d(np.polyfit(combinations_df[value_id][1:], combinations_df.agree[1:], 3))

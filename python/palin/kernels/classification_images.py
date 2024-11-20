@@ -13,7 +13,7 @@ from .kernel_extractor import KernelExtractor
 class ClassificationImage(KernelExtractor):
 
     @classmethod
-    def extract_single_kernel(cls, data_df, feature_id = 'feature', value_id = 'value', response_id = 'response'):
+    def extract_single_kernel(cls, data_df, feature_id = 'feature', value_id = 'value', response_id = 'response', **kwargs):
 
         ## note this doesn't work for 1-int data
 

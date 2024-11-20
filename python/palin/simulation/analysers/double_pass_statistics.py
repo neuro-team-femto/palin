@@ -4,7 +4,8 @@ from palin.internal_noise.double_pass import DoublePass
 
 class DoublePassStatistics(Analyser): 
 
-    def get_metric_names(self):
+    @classmethod
+    def get_metric_names(cls):
         return ['prob_agree', 'prob_first']
 
     def analyse(self, experiment, participant, participant_responses): 
