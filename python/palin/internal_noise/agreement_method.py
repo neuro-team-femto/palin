@@ -139,8 +139,10 @@ class AgreementMethod(InternalNoiseExtractor):
         from ..simulation.trial import Int2Trial 
         from ..simulation.experiments.double_pass_experiment import DoublePassExperiment
         from ..simulation.trial import Int2Trial, Int1Trial 
-        from ..simulation.analysers.double_pass_statistics import DoublePassStatistics
+        from ..simulation.analysers.agreement_statistics import AgreementStatistics
         from ..simulation.simulation import Simulation as Sim
+        from .double_pass import DoublePass
+        
 
         observer_params = {'kernel':[[1]],
                    'internal_noise_std':internal_noise_range, 
@@ -150,16 +152,18 @@ class AgreementMethod(InternalNoiseExtractor):
                      'trial_type': [Int2Trial],
                      'n_features': [1],
                      'external_noise_std': [1]}
-        analyser_params = {}
+        analyser_params = {'internal_noise_extractor':[DoublePass]}
+
+        ## TODO CHECK HOW to use AgreementStatistics instead of DoublePassStatistics here
 
         sim = Sim(DoublePassExperiment, experiment_params,
               LinearObserver, observer_params, 
-              DoublePassStatistics, analyser_params)
+              AgreementStatistics, analyser_params)
 
         sim_df = sim.run_all(n_runs=n_runs)
-
+        
         # average measures over all runs
-        sim_df.groupby(['internal_noise_std','criteria'])[DoublePassStatistics.get_metric_names()].mean()
+        sim_df.groupby(['internal_noise_std','criteria'])[AgreementStatistics.get_metric_names()].mean()
         return sim_df
 
        

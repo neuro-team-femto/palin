@@ -108,10 +108,8 @@ class Simulation(ABC):
         '''
         Single process implementation of run_all. Slow, but simple.
         '''
-        #if verbose: 
-        #    print("Running %d configs"%len(self.config_params))
-
         runs = self.repeat_configs(n_runs)
+        
         run_results = []
 
         progress_runs = tqdm(runs)

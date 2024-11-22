@@ -8,6 +8,7 @@ class InternalNoiseValue(Analyser):
         self.internal_noise_extractor = internal_noise_extractor
         self.kwargs = kwargs
 
+    @classmethod
     def get_metric_names(self):
         return ['estimated_internal_noise','estimated_criteria']
         
