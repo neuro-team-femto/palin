@@ -10,30 +10,128 @@ import numpy as np
 import os.path
 import warnings
 import ast
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+from statsmodels.genmod.families import Binomial
+from ..kernels.glm_kernel import GLMKernel
 from .internal_noise_extractor import InternalNoiseExtractor
+
 from abc import ABC,abstractmethod
 
 class GLMMethod(InternalNoiseExtractor):
-    ''' 
-    This class implements method to estimate internal noise from a GLM fit, based on the confidence interval on the GLM weights'''
+    """
+    Implements a method to estimate internal noise based on the confidence intervals from a GLM fit.
+    """
 
-    def __str__(self): 
-        return 'GLM method'
+    def __str__(self):
+        return "GLM Method"
 
     @classmethod
-    def extract_single_internal_noise(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs):
-        '''
-        Extracts internal noise for a single observer/session, using CI from a GLM fit. 
-        '''
+    def build_model(cls):
+        """
+        Fits an OLS regression model to map `norm_max_feature_ci` to `internal_noise_std`.
+
+        Parameters:
+        - norm_ci_values (list or array): Observed norm_max_feature_ci values.
+        - noise_std_values (list or array): Corresponding internal_noise_std values.
+
+        Updates:
+        - Sets the slope (a) and intercept (b) as attributes of the class.
+        """
+
+        from ..simulation.analysers.ci_value import CIValue
+        from ..simulation.simulation import Simulation as Sim
+        from ..simulation.experiments.simple_experiment import SimpleExperiment
+        from ..simulation.observers.linear_observer import LinearObserver
+        from ..simulation.trial import Int2Trial 
+
+        observer_params = {'kernel':['random'],
+                           'internal_noise_std':np.arange(0.2,5.1,0.1), 
+                                             'criteria':[0]}
+
+        experiment_params = {'n_trials':[1000], 
+                     'trial_type': [Int2Trial],
+                     'n_features': [5],
+                     'external_noise_std': [100]}
+
+        # TODO: learn dependency on varying n_trials (internal_noise_std ~ norm_max_feature_ci*n_trials)
+        analyser_params = {}        
+                   
+        sim = Sim(SimpleExperiment, experiment_params, 
+                 LinearObserver, observer_params, 
+                CIValue, analyser_params)
+        sim_df = sim.run_all(n_runs=10)
+
+        # Fit the OLS model using statsmodels.formula.api.ols
+        model = smf.ols(formula="internal_noise_std ~ confidence_interval", data=sim_df).fit()
+
+        #self.a = model.params['norm_max_feature_ci']
+        #self.b = model.params['Intercept']
+
+        return model
         
-        # Fit GLM to data
-        # model = glm.fit(data_df)
+    @classmethod
+    def extract_norm_ci_value(cls, data_df, trial_id='trial', feature_id='feature', value_id='value', response_id='response'):
+         # Use GLMKernel to fit GLM and extract kernel and confidence intervals
+        model = GLMKernel.train_GLM_from_data(data_df=data_df,
+            feature_id=feature_id,
+            value_id=value_id,
+            response_id=response_id
+        )
 
-        # Extract confidence intervals
-        # ci = model.conf_int()
+        # extract conf intervals
+        ci = model.conf_int()
+        ci.columns = ['lower_bound', 'upper_bound']
+        ci_df = ci.iloc[1:]  # Exclude the intercept
+        ci_df = ci_df.reset_index(drop=True)
 
-        # Convert CI to IN
-        # internal_noise = f(ci)
+        kernel_df = GLMKernel.convert_model_to_kernel(model,feature_id)
 
-        return internal_noise
+        # Calculate confidence interval size
+        kernel_df['conf_int'] = ci_df['upper_bound'] - ci_df['lower_bound']
+        
+        # Normalize confidence intervals
+        kernel_df['norm_ci'] = kernel_df['conf_int'] / kernel_df['kernel_value'].abs()
+
+        # Calculate normalized maximum feature confidence interval
+        max_feature_ci = kernel_df['norm_ci'].iloc[np.argmax(kernel_df['kernel_value'].abs())]
+        # scale by nb of trials
+        norm_max_feature_ci = max_feature_ci * np.sqrt(data_df[trial_id].nunique()) 
+        return norm_max_feature_ci
+        
+    
+    @classmethod
+    def extract_single_internal_noise(cls, data_df, trial_id='trial', feature_id='feature', value_id='value', response_id='response', **kwargs):
+        """
+        Extracts internal noise for a single observer/session using the GLM fit.
+
+        Parameters:
+        - data_df (pd.DataFrame): DataFrame containing trial data.
+        - trial_id (str): Column name for trial IDs.
+        - feature_id (str): Column name for feature IDs.
+        - value_id (str): Column name for feature values.
+        - response_id (str): Column name for response values.
+
+        Returns:
+        - float: Estimated internal noise.
+        """
+
+        if 'model_file' not in kwargs:
+            raise ValueError('no model file provided for GLM Method') 
+
+        norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, feature_id, value_id, response_id)
+
+        # convert to internal noise 
+         # load model or rebuild
+        #regression_file = kwargs['model_file']
+        #if not os.path.isfile(regression_file): 
+        #    raise ValueError('unvalid model file provided for GLM Method') 
+        #else: 
+        #    regression_file = pd.read_csv(regression_file, index_col=0)
+
+
+        #kernel_df['norm_max_feature_ci'] = norm_max_feature_ci
+        return norm_max_feature_ci
+    
+
     

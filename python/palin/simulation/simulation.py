@@ -147,7 +147,8 @@ class Simulation(ABC):
         The observer responds to the experiment, and their responses are analysed with the analyser. 
         Results are then returned in a dictionary of metric_name:value pairs, which include a copy of the config parameters. 
         '''
-
+        
+        
         # separate this run's parameters into distinct sets
         config_experiment_params = {k: v for k, v in config_param.items() if k in self.experiment_params}
         config_observer_params = {k: v for k, v in config_param.items() if k in self.observer_params}
@@ -157,6 +158,7 @@ class Simulation(ABC):
         obs = self.observer(**config_observer_params)
         ana = self.analyser(**config_analyser_params)
 
+    
         responses = obs.respond_to_experiment(exp)
         
         metrics =  ana.get_metric_names()

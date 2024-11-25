@@ -39,6 +39,24 @@ class GLMKernel(KernelExtractor):
         Extracts a single kernel by fitting a GLM to the given data.
         Returns a DataFrame with feature IDs and kernel values.
         """
+        
+        model = cls.train_GLM_from_data(data_df, feature_id, value_id, response_id, **kwargs)
+
+        kernel = cls.convert_model_to_kernel(model, feature_id)
+        
+        return kernel
+    
+    @classmethod
+    def convert_model_to_kernel(csl,model, feature_id='feature'):
+        # Extract coefficients
+        coefs = model.params[1:]  # Exclude the intercept
+        kernel = pd.DataFrame({feature_id: range(len(coefs)), 'kernel_value': coefs.values}).set_index(feature_id)
+        return kernel
+
+
+    @classmethod
+    def train_GLM_from_data(cls, data_df, feature_id='feature', value_id='value', response_id='response', **kwargs):
+        
         # Preprocess data
         pivoted_df = data_df.pivot_table(index=['trial', 'stim', 'response'],
                                          columns='feature',
@@ -53,26 +71,16 @@ class GLMKernel(KernelExtractor):
         df_diff['response'] = df_stim0['response'].values
         preprocessed_data = df_diff.reset_index()
 
+        # TODO: add jitter to cover for simulated data with obs with 0 internal noise
+
         # Fit the GLM
         formula = f'{response_id} ~ {" + ".join(preprocessed_data.filter(like="diff_").columns)}'
-        results = smf.glm(formula=formula, data=preprocessed_data, family=Binomial()).fit()
+        model = smf.glm(formula=formula, data=preprocessed_data, family=Binomial()).fit()
 
-        # Extract coefficients
-        coefs = results.params[1:]  # Exclude the intercept
-        kernel = pd.DataFrame({feature_id: range(len(coefs)), 'kernel_value': coefs.values}).set_index(feature_id)
-        return kernel
-        #s.set_index(feature_id), results
+        return model
+        
 
-    @classmethod
-    def get_confidence_intervals(cls, results):
-        """
-        Retrieves confidence intervals for the GLM coefficients.
-        Returns a DataFrame with lower and upper bounds of the intervals.
-        """
-        # Extract confidence intervals
-        ci = results.conf_int()
-        ci.columns = ['lower_bound', 'upper_bound']
-        return ci.iloc[1:]  # Exclude the intercept
+    
 
     def __str__(self):
         return 'GLM Kernel'

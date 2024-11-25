@@ -8,7 +8,7 @@ class KernelDistance(Analyser):
         self.kernel_extractor = kernel_extractor
         self.distance = distance
 
-    @classmethod
+    #@classmethod
     def get_metric_names(self):
         return [self.distance.lower()]
         
