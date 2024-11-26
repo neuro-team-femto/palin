@@ -17,13 +17,12 @@ class GLMKernel(KernelExtractor):
     """
 
     @classmethod
-    def extract_single_kernel(cls, data_df, feature_id='feature', value_id='value', response_id='response', **kwargs):
+    def extract_single_kernel(cls, data_df, trial_id='trial',stim_id='stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
         """
         Extracts a single kernel by fitting a GLM to the given data.
         Returns a DataFrame with feature IDs and kernel values.
         """
-        
-        model = cls.train_GLM_from_data(data_df, feature_id, value_id, response_id, **kwargs)
+        model = cls.train_GLM_from_data(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
 
         kernel = cls.convert_model_to_kernel(model, feature_id)
         
@@ -38,23 +37,21 @@ class GLMKernel(KernelExtractor):
 
 
     @classmethod
-    def train_GLM_from_data(cls, data_df, feature_id='feature', value_id='value', response_id='response', **kwargs):
+    def train_GLM_from_data(cls, data_df, trial_id='trial',stim_id='stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
 
         # Warning: this won't work for 1-int data (and no real way to know whether it's the case)
 
-        # fixme: this should use feature_id, etc. arguments instead of hardcoded column names
-        
         # Format data_df for training: values as columns, subtract values within each trial 
-        pivoted_df = data_df.pivot_table(index=['trial', 'stim', 'response'],
-                                         columns='feature',
-                                         values='value',
+        pivoted_df = data_df.pivot_table(index=[trial_id, stim_id, response_id],
+                                         columns=[feature_id],
+                                         values=[value_id],
                                          aggfunc='first').reset_index()
-        pivoted_df.columns = ['trial', 'stim_order', 'response'] + [f'value{col}' for col in range(data_df['feature'].nunique())]
-        pivoted_df['response'] = pivoted_df['response'].astype(int)
-        df_stim0 = pivoted_df[pivoted_df['stim_order'] == 0].set_index('trial')
-        df_stim1 = pivoted_df[pivoted_df['stim_order'] == 1].set_index('trial')
-        df_diff = df_stim0.filter(like='value').subtract(df_stim1.filter(like='value')).add_prefix('diff_')
-        df_diff['response'] = df_stim0['response'].values
+        pivoted_df.columns = [trial_id, stim_id, response_id] + [(value_id+'%d'%col) for col in range(data_df[feature_id].nunique())]
+        pivoted_df[response_id] = pivoted_df[response_id].astype(int)
+        df_stim0 = pivoted_df[pivoted_df[stim_id] == 0].set_index(trial_id)
+        df_stim1 = pivoted_df[pivoted_df[stim_id] == 1].set_index(trial_id)
+        df_diff = df_stim0.filter(like=value_id).subtract(df_stim1.filter(like=value_id)).add_prefix('diff_')
+        df_diff[response_id] = df_stim0[response_id].values
         preprocessed_data = df_diff.reset_index()
 
         # add jitter to cover for simulated data with obs with 0 internal noise
@@ -76,7 +73,7 @@ class GLMKernel(KernelExtractor):
         This adds random variation to a GLM-formatted dataframe, to avoid numerical errors when the data is generated without internal noise
         '''
 
-        n_jitter = int(np.ceil(jitter*data_df[trial_id].nunique()))
+        n_jitter = max(5,int(np.ceil(jitter*data_df[trial_id].nunique())))
         
         # select n_jitter smallest trials by trial intensity (don't randomize high-intensity trials)
         data_df['trial_intensity'] = data_df.filter(like='diff_value').abs().sum(axis=1)

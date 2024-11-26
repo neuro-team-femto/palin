@@ -14,16 +14,16 @@ class KernelExtractor(ABC):
 
     @classmethod
     @abstractmethod
-    def extract_single_kernel(cls,data_df, feature_id = 'feature', value_id = 'value', response_id = 'response', **kwargs): 
+    def extract_single_kernel(cls,data_df, trial_id='trial',stim_id='stim', feature_id='feature', value_id='value', response_id='response', **kwargs): 
         raise NotImplementedError()
 
     @classmethod
-    def extract_kernels(cls,data_df, group_ids, feature_id, value_id, response_id, normalize = True):
+    def extract_kernels(cls,data_df, group_ids, trial_id='trial',stim_id='stim', feature_id='feature', value_id='value', response_id='response', normalize = True):
         
         # for each level in group, compute kernels
 
         def extract_normalize(group): 
-            kernel = cls.extract_single_kernel(group, feature_id, value_id, response_id)
+            kernel = cls.extract_single_kernel(group, trial_id,stim_id, feature_id, value_id, response_id)
             if normalize: 
                 kernel = cls.normalize_kernel(kernel)
             return kernel
