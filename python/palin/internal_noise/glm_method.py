@@ -10,9 +10,7 @@ import numpy as np
 import os.path
 import warnings
 import ast
-import statsmodels.api as sm
 import statsmodels.formula.api as smf
-from statsmodels.genmod.families import Binomial
 from ..kernels.glm_kernel import GLMKernel
 from .internal_noise_extractor import InternalNoiseExtractor
 
@@ -116,22 +114,24 @@ class GLMMethod(InternalNoiseExtractor):
         - float: Estimated internal noise.
         """
 
-        if 'model_file' not in kwargs:
-            raise ValueError('no model file provided for GLM Method') 
+        # if 'model_file' not in kwargs:
+        #     raise ValueError('no model file provided for GLM Method') 
 
         norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, feature_id, value_id, response_id)
 
         # convert to internal noise 
          # load model or rebuild
-        #regression_file = kwargs['model_file']
-        #if not os.path.isfile(regression_file): 
+        # regression_file = kwargs['model_file']
+        # if not os.path.isfile(regression_file): 
         #    raise ValueError('unvalid model file provided for GLM Method') 
-        #else: 
+        # else: 
         #    regression_file = pd.read_csv(regression_file, index_col=0)
-
-
+        # model_reg=regression_file
+        # Estimate internal noise
+        model =cls.build_model()
+        estimated_noise_CI = norm_max_feature_ci * model.params[1] + model.params[0]
         #kernel_df['norm_max_feature_ci'] = norm_max_feature_ci
-        return norm_max_feature_ci
+        return estimated_noise_CI, None
     
 
     
