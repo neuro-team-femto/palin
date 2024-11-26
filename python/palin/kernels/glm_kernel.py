@@ -11,23 +11,6 @@ import statsmodels.formula.api as smf
 from statsmodels.genmod.families import Binomial
 from .kernel_extractor import KernelExtractor
 
-# class GLMKernel(KernelExtractor):
-
-#     @classmethod
-#     def extract_single_kernel(cls, data_df, feature_id = 'feature', value_id = 'value', response_id = 'response', **kwargs):
-#     '''
-#     Extracts kernel by fitting a GLM to data_df and returning the GLM weights. 
-#     Returns a single kernel as a dataframe with feature and kernel_value
-#     '''
-
-#         #kernels['kernel_value'] = kernels['%s_true'%value_id] - kernels['%s_false'%value_id]
-#         #kernels = kernels[[feature_id,'kernel_value']].set_index(feature_id)
-#         #kernels.index.names = ['feature']
-#         #return kernels
-
-#     def __str__(self): 
-#         return 'GLM Kernel'
-
 class GLMKernel(KernelExtractor):
     """
     This class extracts kernel weights using a Generalized Linear Model (GLM).
@@ -56,31 +39,54 @@ class GLMKernel(KernelExtractor):
 
     @classmethod
     def train_GLM_from_data(cls, data_df, feature_id='feature', value_id='value', response_id='response', **kwargs):
+
+        # Warning: this won't work for 1-int data (and no real way to know whether it's the case)
+
+        # fixme: this should use feature_id, etc. arguments instead of hardcoded column names
         
-        # Preprocess data
+        # Format data_df for training: values as columns, subtract values within each trial 
         pivoted_df = data_df.pivot_table(index=['trial', 'stim', 'response'],
                                          columns='feature',
                                          values='value',
                                          aggfunc='first').reset_index()
-        pivoted_df.columns = ['trial', 'stim_order', 'response'] + [f'value{col}' for col in range(data_df[feature_id].nunique())]
+        pivoted_df.columns = ['trial', 'stim_order', 'response'] + [f'value{col}' for col in range(data_df['feature'].nunique())]
         pivoted_df['response'] = pivoted_df['response'].astype(int)
-
         df_stim0 = pivoted_df[pivoted_df['stim_order'] == 0].set_index('trial')
         df_stim1 = pivoted_df[pivoted_df['stim_order'] == 1].set_index('trial')
         df_diff = df_stim0.filter(like='value').subtract(df_stim1.filter(like='value')).add_prefix('diff_')
         df_diff['response'] = df_stim0['response'].values
         preprocessed_data = df_diff.reset_index()
 
-        # TODO: add jitter to cover for simulated data with obs with 0 internal noise
-
+        # add jitter to cover for simulated data with obs with 0 internal noise
+        if 'jitter' in kwargs:
+            jitter = kwargs['jitter']
+        else: 
+            jitter= 0.01
+        preprocessed_data = cls._add_jitter(preprocessed_data, jitter)
+        
         # Fit the GLM
         formula = f'{response_id} ~ {" + ".join(preprocessed_data.filter(like="diff_").columns)}'
         model = smf.glm(formula=formula, data=preprocessed_data, family=Binomial()).fit()
 
         return model
         
+    @classmethod
+    def _add_jitter(cls, data_df, jitter, trial_id = 'trial', response_id = 'response'): 
+        ''' 
+        This adds random variation to a GLM-formatted dataframe, to avoid numerical errors when the data is generated without internal noise
+        '''
 
-    
+        n_jitter = int(np.ceil(jitter*data_df[trial_id].nunique()))
+        
+        # select n_jitter smallest trials by trial intensity (don't randomize high-intensity trials)
+        data_df['trial_intensity'] = data_df.filter(like='diff_value').abs().sum(axis=1)
+
+        selection = data_df.sort_values('trial_intensity').head(n_jitter).index
+
+        # flip response
+        data_df.loc[selection,response_id] = 1 - data_df.loc[selection,response_id]
+
+        return data_df    
 
     def __str__(self):
         return 'GLM Kernel'
