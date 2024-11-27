@@ -157,17 +157,25 @@ class Simulation(ABC):
         exp = self.experiment(**config_experiment_params)
         obs = self.observer(**config_observer_params)
         ana = self.analyser(**config_analyser_params)
-
     
         responses = obs.respond_to_experiment(exp)
-        
+
         metrics =  ana.get_metric_names()
         values = ana.analyse(exp, obs, responses)
-        
+
         # return the metrics as a dict of name:value pairs
         results = config_param
-        for metric,value in zip(metrics,values): 
+        for metric,value in zip(self._ensure_iterable(metrics),self._ensure_iterable(values)): 
             results[metric] = value
         return results
 
+
+    def _ensure_iterable(self,s): 
+        '''
+        return s if iterable, or [s] is not
+        '''
+        if hasattr(s, '__iter__') and not isinstance(s, str):
+            return s
+        else: 
+            return [s]
 
