@@ -143,7 +143,7 @@ class AgreementMethod(InternalNoiseExtractor):
         return best_match.internal_noise_std.iloc[0], best_match.criteria.iloc[0]
 
     @classmethod
-    def build_model(cls,internal_noise_range=np.arange(0,5,.1),criteria_range=np.arange(-5,5,1), n_repeated_trials=100, n_runs=10): 
+    def build_model(cls,model_file = './double_pass_model.csv', internal_noise_range=np.arange(0,5,.1),criteria_range=np.arange(-5,5,1), n_repeated_trials=100, n_runs=10): 
         '''
         Build a model that associates a range of internal noise and criteria values with their corresponding (simulated) prob_agree and prob_first.
         This uses a simulated LinearObserver, and returns the model as a dataframe 
@@ -180,6 +180,9 @@ class AgreementMethod(InternalNoiseExtractor):
         
         # average measures over all runs
         sim_df.groupby(['internal_noise_std','criteria'])[AgreementStatistics.get_metric_names()].mean()
+        
+        sim_df.to_csv(model_file)
+
         return sim_df
 
        

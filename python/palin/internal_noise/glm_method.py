@@ -27,7 +27,7 @@ class GLMMethod(InternalNoiseExtractor):
         return "GLM Method"
 
     @classmethod
-    def build_model(cls):
+    def build_model(cls, model_file='./glm_method_model.pkl'):
         """
         Fits an OLS regression model to map `norm_max_feature_ci` to `internal_noise_std`.
 
@@ -61,8 +61,9 @@ class GLMMethod(InternalNoiseExtractor):
         # TODO: learn dependency on varying n_trials (internal_noise_std ~ norm_max_feature_ci*n_trials)
         model = smf.ols(formula="internal_noise_std ~ confidence_interval", data=sim_df).fit()
 
-        sns.regplot(x='confidence_interval', y='internal_noise_std', data=sim_df)
+        #sns.regplot(x='confidence_interval', y='internal_noise_std', data=sim_df)
 
+        model.save(model_file)
         return model
         
     @classmethod
@@ -112,23 +113,23 @@ class GLMMethod(InternalNoiseExtractor):
         """
 
         if 'model_file' not in kwargs:
-            raise ValueError('no model file provided for GLM Method') 
+            raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
 
         # extract CI on weights from a GLM fit 
         norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, feature_id, value_id, response_id)
 
         # convert to internal noise 
-        regression_file = kwargs['model_file']
-        if not os.path.isfile(regression_file): 
+        model_file = kwargs['model_file']
+        if not os.path.isfile(model_file): 
             raise ValueError('unvalid model file provided for GLM Method') 
         else: 
-            regression_model = sm.load(regression_file)
+            model = sm.load(model_file)
             ci_df = pd.DataFrame({'confidence_interval': [norm_max_feature_ci]})
             ci_df = sm.add_constant(ci_df)
-            internal_noise = regression_model.predict(ci_df)
-
+            internal_noise = model.predict(ci_df).iloc[0]
+            
             # note: to get confidence intervals on estimated noise, do: 
-            # pred = regression_model.get_prediction(ci_df)
+            # pred = model.get_prediction(ci_df)
             # pred.summary_frame(alpha=0.05) 
 
         return internal_noise
