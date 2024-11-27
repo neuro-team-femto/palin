@@ -43,7 +43,7 @@ class GLMMethod(InternalNoiseExtractor):
                            'internal_noise_std':np.arange(0,5.1,0.1), 
                                              'criteria':[0]}
 
-        experiment_params = {'n_trials':[1000], 
+        experiment_params = {'n_trials':np.arange(100,1000,100), 
                      'trial_type': [Int2Trial],
                      'n_features': [5],
                      'external_noise_std': [100]}
@@ -55,14 +55,14 @@ class GLMMethod(InternalNoiseExtractor):
                  CIValue, analyser_params)
         sim_df = sim.run_all(n_runs=10)
 
-        sim_df = sim_df.groupby(['internal_noise_std']).confidence_interval.mean().reset_index()
+        sim_df = sim_df.groupby(['internal_noise_std', 'n_trials']).confidence_interval.mean().reset_index()
 
         # Fit the OLS model using statsmodels.formula.api.ols
         # TODO: learn dependency on varying n_trials (internal_noise_std ~ norm_max_feature_ci*n_trials)
-        model = smf.ols(formula="internal_noise_std ~ confidence_interval", data=sim_df).fit()
+        model = smf.ols(formula="internal_noise_std ~ confidence_interval*n_trials", data=sim_df).fit()
 
         if plot: 
-            sns.regplot(x='confidence_interval', y='internal_noise_std', data=sim_df)
+            sns.lmplot(x='confidence_interval', y='internal_noise_std', hue='n_trials', data=sim_df)
 
         model.save(glm_model_file)
         return model
@@ -127,7 +127,8 @@ class GLMMethod(InternalNoiseExtractor):
             raise ValueError('unvalid model file provided for GLM Method') 
         else: 
             model = sm.load(model_file)
-            ci_df = pd.DataFrame({'confidence_interval': [norm_max_feature_ci]})
+            ci_df = pd.DataFrame({'confidence_interval': [norm_max_feature_ci], 
+                'n_trials': [data_df[trial_id].nunique()],})
             ci_df = sm.add_constant(ci_df)
             internal_noise = model.predict(ci_df).iloc[0]
 
