@@ -27,7 +27,7 @@ class GLMMethod(InternalNoiseExtractor):
         return "GLM Method"
 
     @classmethod
-    def build_model(cls, glm_model_file='./glm_method_model.pkl'):
+    def build_model(cls, glm_model_file='./glm_model.pkl', plot=False):
         """
         Fits an OLS regression model to map `norm_max_feature_ci` to `internal_noise_std`.
 
@@ -55,13 +55,14 @@ class GLMMethod(InternalNoiseExtractor):
                  CIValue, analyser_params)
         sim_df = sim.run_all(n_runs=10)
 
-        #sim_df = sim_df.groupby(['internal_noise_std']).confidence_interval.mean().reset_index()
+        sim_df = sim_df.groupby(['internal_noise_std']).confidence_interval.mean().reset_index()
 
         # Fit the OLS model using statsmodels.formula.api.ols
         # TODO: learn dependency on varying n_trials (internal_noise_std ~ norm_max_feature_ci*n_trials)
         model = smf.ols(formula="internal_noise_std ~ confidence_interval", data=sim_df).fit()
 
-        #sns.regplot(x='confidence_interval', y='internal_noise_std', data=sim_df)
+        if plot: 
+            sns.regplot(x='confidence_interval', y='internal_noise_std', data=sim_df)
 
         model.save(glm_model_file)
         return model
@@ -91,8 +92,10 @@ class GLMMethod(InternalNoiseExtractor):
 
         # Calculate normalized maximum feature confidence interval
         max_feature_ci = kernel_df['norm_ci'].iloc[np.argmax(kernel_df['kernel_value'].abs())]
+        
         # scale by nb of trials
         norm_max_feature_ci = max_feature_ci * np.sqrt(data_df[trial_id].nunique()) 
+        
         return norm_max_feature_ci
         
     
