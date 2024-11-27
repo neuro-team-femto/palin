@@ -108,10 +108,8 @@ class Simulation(ABC):
         '''
         Single process implementation of run_all. Slow, but simple.
         '''
-        #if verbose: 
-        #    print("Running %d configs"%len(self.config_params))
-
         runs = self.repeat_configs(n_runs)
+        
         run_results = []
 
         progress_runs = tqdm(runs)
@@ -149,7 +147,8 @@ class Simulation(ABC):
         The observer responds to the experiment, and their responses are analysed with the analyser. 
         Results are then returned in a dictionary of metric_name:value pairs, which include a copy of the config parameters. 
         '''
-
+        
+        
         # separate this run's parameters into distinct sets
         config_experiment_params = {k: v for k, v in config_param.items() if k in self.experiment_params}
         config_observer_params = {k: v for k, v in config_param.items() if k in self.observer_params}
@@ -158,16 +157,25 @@ class Simulation(ABC):
         exp = self.experiment(**config_experiment_params)
         obs = self.observer(**config_observer_params)
         ana = self.analyser(**config_analyser_params)
-
+    
         responses = obs.respond_to_experiment(exp)
-        
+
         metrics =  ana.get_metric_names()
         values = ana.analyse(exp, obs, responses)
-        
+
         # return the metrics as a dict of name:value pairs
         results = config_param
-        for metric,value in zip(metrics,values): 
+        for metric,value in zip(self._ensure_iterable(metrics),self._ensure_iterable(values)): 
             results[metric] = value
         return results
 
+
+    def _ensure_iterable(self,s): 
+        '''
+        return s if iterable, or [s] is not
+        '''
+        if hasattr(s, '__iter__') and not isinstance(s, str):
+            return s
+        else: 
+            return [s]
 
