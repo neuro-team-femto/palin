@@ -76,7 +76,7 @@ class InterceptMethod(AgreementMethod):
         # computed difference between each trial pair (as an option: projected on the kernel)
         combinations_df[value_id]=(combinations_df[value_id+'_1'] - combinations_df[value_id+'_2'])
         if kernel_extractor: 
-            kernel = kernel_extractor.extract_single_kernel(data_df, feature_id, value_id, response_id)
+            kernel = kernel_extractor.extract_single_kernel(data_df, trial_id,stim_id, feature_id, value_id, response_id)
             # projected difference on the kernel (if 2 trials are different in dimensions for which the kernel is null, then that difference doesn't matter)
             combinations_df[value_id]= combinations_df[value_id].apply(lambda x: np.abs(x.dot(list(kernel.kernel_value))))
         else: 
