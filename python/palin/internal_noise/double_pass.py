@@ -33,10 +33,18 @@ class DoublePass(AgreementMethod):
         double_pass_df = cls.index_double_pass_trials(data_df, trial_id=trial_id, value_id = value_id, double_pass_id = double_pass_id)
         double_pass_df = double_pass_df[double_pass_df[double_pass_id].notna()]
 
+        if double_pass_df.trial.nunique()==0: 
+            raise Exception('No double pass trials in the experiment') 
+
         # compute probability of agreement over double pass
         prob_agree = cls.compute_prob_agreement(double_pass_df, trial_id=trial_id, response_id=response_id, double_pass_id='double_pass_id')
+        
         # compute probability of choosing first response option
         prob_first = cls.compute_prob_first(double_pass_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id, **kwargs)
+        
+
+
+
         return prob_agree, prob_first
 
     @classmethod

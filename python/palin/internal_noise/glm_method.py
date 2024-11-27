@@ -27,7 +27,7 @@ class GLMMethod(InternalNoiseExtractor):
         return "GLM Method"
 
     @classmethod
-    def build_model(cls, model_file='./glm_method_model.pkl'):
+    def build_model(cls, glm_model_file='./glm_method_model.pkl'):
         """
         Fits an OLS regression model to map `norm_max_feature_ci` to `internal_noise_std`.
 
@@ -63,7 +63,7 @@ class GLMMethod(InternalNoiseExtractor):
 
         #sns.regplot(x='confidence_interval', y='internal_noise_std', data=sim_df)
 
-        model.save(model_file)
+        model.save(glm_model_file)
         return model
         
     @classmethod
@@ -112,14 +112,14 @@ class GLMMethod(InternalNoiseExtractor):
         - float: Estimated internal noise.
         """
 
-        if 'model_file' not in kwargs:
+        if 'glm_model_file' not in kwargs:
             raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
 
         # extract CI on weights from a GLM fit 
         norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, feature_id, value_id, response_id)
 
         # convert to internal noise 
-        model_file = kwargs['model_file']
+        model_file = kwargs['glm_model_file']
         if not os.path.isfile(model_file): 
             raise ValueError('unvalid model file provided for GLM Method') 
         else: 
@@ -127,7 +127,7 @@ class GLMMethod(InternalNoiseExtractor):
             ci_df = pd.DataFrame({'confidence_interval': [norm_max_feature_ci]})
             ci_df = sm.add_constant(ci_df)
             internal_noise = model.predict(ci_df).iloc[0]
-            
+
             # note: to get confidence intervals on estimated noise, do: 
             # pred = model.get_prediction(ci_df)
             # pred.summary_frame(alpha=0.05) 
