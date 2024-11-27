@@ -38,7 +38,23 @@ class AgreementMethod(InternalNoiseExtractor):
 
         internal_noise, criteria = cls.estimate_noise_criteria(prob_agree, prob_first, kwargs['model_file'])
 
-        return internal_noise,criteria
+        return internal_noise
+
+    @classmethod
+    def extract_single_criteria(cls,data_df, trial_id = 'trial', stim_id = 'stim', feature_id = 'feature', value_id = 'value', response_id = 'response', **kwargs):
+        '''
+        Extracts internal noise and criteria for a single observer/session. 
+        To extract for several users/sessions, use the superclass's method extract_internal_noise
+        '''
+
+        if 'model_file' not in kwargs:
+            raise ValueError('no model file provided for AgreementMethod') 
+
+        prob_agree, prob_first = cls.compute_probabilities(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
+
+        internal_noise, criteria = cls.estimate_noise_criteria(prob_agree, prob_first, kwargs['model_file'])
+
+        return criteria
 
     @classmethod
     @abstractmethod

@@ -10,7 +10,7 @@ class InternalNoiseValue(Analyser):
 
     @classmethod
     def get_metric_names(self):
-        return ['estimated_internal_noise','estimated_criteria']
+        return ['estimated_internal_noise']
         
     def analyse(self, experiment, participant, participant_responses): 
 
@@ -20,9 +20,9 @@ class InternalNoiseValue(Analyser):
 
         responses_df = self.to_df(experiment, participant_responses)
 
-        internal_noise, criteria = self.internal_noise_extractor.extract_single_internal_noise(data_df = responses_df,
+        internal_noise = self.internal_noise_extractor.extract_single_internal_noise(data_df = responses_df,
          trial_id = 'trial', stim_id = 'stim', feature_id = 'feature', value_id = 'value', response_id = 'response', **self.kwargs)
 
-        return internal_noise, criteria
+        return internal_noise
         
         
