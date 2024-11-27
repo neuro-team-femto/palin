@@ -36,7 +36,7 @@ class AgreementMethod(InternalNoiseExtractor):
 
         prob_agree, prob_first = cls.compute_probabilities(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
 
-        internal_noise, criteria = cls.estimate_noise_criteria(prob_agree, prob_first, agreement_model_file=kwargs['model_file'])
+        internal_noise, criteria = cls.estimate_noise_criteria(prob_agree, prob_first, agreement_model_file=kwargs['agreement_model_file'])
 
         return internal_noise
 

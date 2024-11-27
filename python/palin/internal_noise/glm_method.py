@@ -55,7 +55,7 @@ class GLMMethod(InternalNoiseExtractor):
                  CIValue, analyser_params)
         sim_df = sim.run_all(n_runs=10)
 
-        sim_df = sim_df.groupby(['internal_noise_std']).confidence_interval.mean().reset_index()
+        #sim_df = sim_df.groupby(['internal_noise_std']).confidence_interval.mean().reset_index()
 
         # Fit the OLS model using statsmodels.formula.api.ols
         # TODO: learn dependency on varying n_trials (internal_noise_std ~ norm_max_feature_ci*n_trials)
