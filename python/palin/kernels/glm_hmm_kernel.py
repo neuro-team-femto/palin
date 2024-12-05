@@ -75,7 +75,9 @@ class GLMHMMKernel(KernelExtractor):
             **kwargs: Additional arguments for training.
 
         Returns:
-            np.ndarray: Extracted kernel weights for each feature.
+            tuple:
+                - np.ndarray: Extracted kernel weights for each feature.
+                - np.ndarray: Posterior probabilities for each trial.
         """
         # Preprocess inputs and responses
         inputs, responses = cls._preprocess_inputs_and_responses(
@@ -88,7 +90,10 @@ class GLMHMMKernel(KernelExtractor):
         # Extract kernel weights
         kernel = cls._extract_kernel_from_model(model)
 
-        return kernel
+        # Extract posterior probabilities and predicted states
+        posterior_probs, predicted_states = cls._extract_posterior_probabilities(model, responses, inputs)
+
+        return kernel, posterior_probs, predicted_states
 
     @staticmethod
     def _preprocess_inputs_and_responses(data_df, trial_id, stim_id, feature_id, value_id, response_id):
@@ -201,6 +206,29 @@ class GLMHMMKernel(KernelExtractor):
             np.ndarray: Kernel weights for each state.
         """
         return model.observations.params
+
+    @staticmethod
+    def _extract_posterior_probabilities(model, responses, inputs):
+        """
+        Extracts posterior probabilities and predicted states from the trained GLM-HMM model.
+
+        Args:
+            model (ssm.HMM): Trained GLM-HMM model.
+            responses (np.ndarray): Participant responses.
+            inputs (np.ndarray): Combined inputs (stimulus differences + choice history).
+
+        Returns:
+            tuple: 
+                - np.ndarray: Posterior probabilities for each trial.
+                - np.ndarray: Predicted states for each trial.
+        """
+        # Extract posterior probabilities using the GLM-HMM model
+        posterior_probs = model.expected_states(data=responses, input=inputs)[0]
+
+        # Determine the most likely state for each trial
+        predicted_states = np.argmax(posterior_probs, axis=1)
+
+        return posterior_probs, predicted_states
 
     def __str__(self):
         return "GLM-HMM Kernel"
