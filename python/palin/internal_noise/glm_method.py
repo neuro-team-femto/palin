@@ -68,21 +68,22 @@ class GLMMethod(InternalNoiseExtractor):
         return model
         
     @classmethod
-    def extract_norm_ci_value(cls, data_df, trial_id='trial', feature_id='feature', value_id='value', response_id='response'):
+    def extract_norm_ci_value(cls, data_df, trial_id='trial', stim_id= 'stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
          # Use GLMKernel to fit GLM and extract kernel and confidence intervals
-        model = GLMKernel.train_GLM_from_data(data_df=data_df,
-            feature_id=feature_id,
-            value_id=value_id,
-            response_id=response_id
-        )
+        
+        model = GLMKernel.train_GLM_from_data(data_df,
+            trial_id,stim_id, feature_id, value_id, response_id, **kwargs)
 
+        if model is None:
+            return np.nan
+            
         # extract conf intervals
         ci = model.conf_int()
         ci.columns = ['lower_bound', 'upper_bound']
         ci_df = ci.iloc[1:]  # Exclude the intercept
         ci_df = ci_df.reset_index(drop=True)
 
-        kernel_df = GLMKernel.convert_model_to_kernel(model,feature_id)
+        kernel_df = GLMKernel.convert_model_to_kernel(model)
 
         # Calculate confidence interval size
         kernel_df['conf_int'] = ci_df['upper_bound'] - ci_df['lower_bound']
@@ -100,7 +101,7 @@ class GLMMethod(InternalNoiseExtractor):
         
     
     @classmethod
-    def extract_single_internal_noise(cls, data_df, trial_id='trial', feature_id='feature', value_id='value', response_id='response', **kwargs):
+    def extract_single_internal_noise(cls, data_df, trial_id='trial', stim_id ='stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
         """
         Extracts internal noise for a single observer/session using the GLM fit.
 
@@ -114,12 +115,14 @@ class GLMMethod(InternalNoiseExtractor):
         Returns:
         - float: Estimated internal noise.
         """
-
         if 'glm_model_file' not in kwargs:
             raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
 
         # extract CI on weights from a GLM fit 
-        norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, feature_id, value_id, response_id)
+        norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
+    
+        if np.isnan(norm_max_feature_ci):
+            return np.nan
 
         # convert to internal noise 
         model_file = kwargs['glm_model_file']
@@ -135,7 +138,6 @@ class GLMMethod(InternalNoiseExtractor):
             # note: to get confidence intervals on estimated noise, do: 
             # pred = model.get_prediction(ci_df)
             # pred.summary_frame(alpha=0.05) 
-
         return internal_noise
 
     

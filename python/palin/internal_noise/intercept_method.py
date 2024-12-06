@@ -41,8 +41,8 @@ class InterceptMethod(AgreementMethod):
         single_pass_df = cls.keep_single_pass(data_df, trial_id=trial_id, double_pass_id = double_pass_id)
         
         # compute probability of agreement
-        prob_agree = cls.compute_prob_agreement(single_pass_df, trial_id=trial_id, 
-            response_id=response_id, feature_id= 'feature', value_id = 'value', kernel_extractor=kwargs['kernel_extractor'])
+        prob_agree = cls.compute_prob_agreement(single_pass_df, trial_id=trial_id, stim_id=stim_id,
+            response_id=response_id, feature_id= feature_id, value_id = value_id, kernel_extractor=kwargs['kernel_extractor'])
         # compute probability of choosing first response option
         prob_first = cls.compute_prob_first(single_pass_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id)
         return prob_agree, prob_first
@@ -54,7 +54,7 @@ class InterceptMethod(AgreementMethod):
         by computing the intercept of the probability over pairs of trials ranked by distance
         has the option to compute distance as raw stimulus difference, or difference projected on kernel (provide a kernel_extractor other than None)
         '''
-
+        
         # pivot data to have one entry per trials (instead of n_features entries) 
         trials_df = data_df.groupby([trial_id,stim_id]).agg({value_id:list, response_id:'first'}).reset_index()
         trials_df[value_id] = trials_df[value_id].apply(lambda x: np.array(x))

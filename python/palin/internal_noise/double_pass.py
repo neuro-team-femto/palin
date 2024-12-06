@@ -32,7 +32,7 @@ class DoublePass(AgreementMethod):
         # index double pass trials
         double_pass_df = cls.index_double_pass_trials(data_df, trial_id=trial_id, value_id = value_id, double_pass_id = double_pass_id)
         double_pass_df = double_pass_df[double_pass_df[double_pass_id].notna()]
-
+        
         if double_pass_df.trial.nunique()==0: 
             raise Exception('No double pass trials in the experiment') 
 

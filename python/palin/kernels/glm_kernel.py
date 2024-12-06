@@ -22,6 +22,7 @@ class GLMKernel(KernelExtractor):
         Extracts a single kernel by fitting a GLM to the given data.
         Returns a DataFrame with feature IDs and kernel values.
         """
+        
         model = cls.train_GLM_from_data(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
 
         kernel = cls.convert_model_to_kernel(model)
@@ -64,7 +65,13 @@ class GLMKernel(KernelExtractor):
         
         # Fit the GLM
         formula = f'{response_id} ~ {" + ".join(preprocessed_data.filter(like="diff_").columns)}'
-        model = smf.glm(formula=formula, data=preprocessed_data, family=Binomial()).fit()
+
+        try:
+            model = smf.glm(formula=formula, data=preprocessed_data, family=Binomial()).fit()
+        except Exception as e:
+            print('Error fitting GLM:', e)
+            print(preprocessed_data)
+            model = None
 
         return model
         
@@ -74,10 +81,14 @@ class GLMKernel(KernelExtractor):
         This adds random variation to a GLM-formatted dataframe, to avoid numerical errors when the data is generated without internal noise
         '''
 
-        n_jitter = max(5,int(np.ceil(jitter*data_df[trial_id].nunique())))
+        if jitter == 0: 
+            n_jitter = 0
+        else: 
+            n_jitter = max(5,int(np.ceil(jitter*data_df[trial_id].nunique())))
+        print('Adding jitter to %d trials'%n_jitter)
         
         # select n_jitter smallest trials by trial intensity (don't randomize high-intensity trials)
-        data_df['trial_intensity'] = data_df.filter(like='diff_value').abs().sum(axis=1)
+        data_df['trial_intensity'] = data_df.filter(like='diff_').abs().sum(axis=1)
 
         selection = data_df.sort_values('trial_intensity').head(n_jitter).index
 
