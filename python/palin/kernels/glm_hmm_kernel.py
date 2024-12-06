@@ -92,8 +92,8 @@ class GLMHMMKernel(KernelExtractor):
 
         # Extract posterior probabilities and predicted states
         posterior_probs, predicted_states = cls._extract_posterior_probabilities(model, responses, inputs)
-
-        return kernel, posterior_probs, predicted_states
+        recovered_trans_mat = cls._extract_recovered_transition_matrix(model)
+        return kernel, posterior_probs, predicted_states,recovered_trans_mat
 
     @staticmethod
     def _preprocess_inputs_and_responses(data_df, trial_id, stim_id, feature_id, value_id, response_id):
@@ -193,6 +193,18 @@ class GLMHMMKernel(KernelExtractor):
         glm_hmm.fit(responses, inputs=inputs, method="em", num_iters=200, tolerance=1e-3)
 
         return glm_hmm
+    @staticmethod
+    def _extract_recovered_transition_matrix(model):
+        """
+        Extracts the recovered transition matrix from the trained GLM-HMM model.
+
+        Args:
+            model (ssm.HMM): Trained GLM-HMM model.
+
+        Returns:
+            np.ndarray: Recovered transition matrix.
+        """
+        return np.exp(model.transitions.log_Ps)
 
     @staticmethod
     def _extract_kernel_from_model(model):
