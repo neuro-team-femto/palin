@@ -150,8 +150,7 @@ class GLMHMMMethod(InternalNoiseExtractor):
 
     @classmethod
     def extract_single_internal_noise(cls, data_df, trial_id='trial', feature_id='feature', value_id='value',
-                                       response_id='response', internal_noise_extractor=None, state_to_filter=1,
-                                       glm_model_file=None, agreement_model_file=None, kernel_extractor=None, **kwargs):
+                                       response_id='response', **kwargs): 
         """
         Extracts internal noise for a single observer/session using the GLM-HMM.
 
@@ -162,18 +161,21 @@ class GLMHMMMethod(InternalNoiseExtractor):
         - value_id (str): Column name for feature values.
         - response_id (str): Column name for response values.
         - internal_noise_extractor (class or method): The noise extractor to use.
-        - state_to_filter (int): State index to filter (default is 1).
-        - glm_model_file (str): Path to the GLM model file required by the internal noise extractor.
-        - agreement_model_file (str): Path to the agreement model file (used by some extractors).
-        - kernel_extractor (class or method): Optional kernel extractor for specific workflows.
+            - glm_model_file (str): optional Path to the GLM model file (used by some internal_noise_extractor).
+            - agreement_model_file (str): optional Path to the agreement model file (used by some internal_noise_extractor).
+            - kernel_extractor (class or method): Optional kernel extractor (used by some internal_noise_extractor).
+        - state_to_filter (int): State index to filter (default is 1).        
         - **kwargs: Additional arguments (e.g., priors).
 
         Returns:
         - float: Estimated internal noise.
         """
-        if internal_noise_extractor is None:
+        if not 'internal_noise_extractor' in kwargs:
             raise ValueError("An `internal_noise_extractor` must be provided.")
 
+        if not 'state_to_filter' in kwargs:
+            kwargs['state_to_filter'] = 1
+            
         # Train GLM-HMM and extract kernel, posterior probabilities, and predicted states
         kernel, posterior_probs, predicted_states, _ = GLMHMMKernel.extract_single_kernel(
             data_df=data_df,
@@ -185,24 +187,11 @@ class GLMHMMMethod(InternalNoiseExtractor):
         )
 
         # Filter data for the specified state
-        filtered_data_df = cls._filter_data_by_state(data_df, posterior_probs, state_to_filter, trial_id)
-
-        # Prepare extractor-specific arguments
-        extractor_kwargs = {
-            'trial_id': trial_id,
-            'feature_id': feature_id,
-            'value_id': value_id,
-            'response_id': response_id,
-            'glm_model_file': glm_model_file,
-            'agreement_model_file': agreement_model_file,
-            'kernel_extractor': kernel_extractor,
-            **kwargs
-        }
+        filtered_data_df = cls._filter_data_by_state(data_df, posterior_probs, kwargs['state_to_filter'], trial_id)
 
         # Compute internal noise using the specified internal noise extractor
-        internal_noise = internal_noise_extractor.extract_single_internal_noise(
-            filtered_data_df, **extractor_kwargs
-        )
+        internal_noise = kwargs['internal_noise_extractor'].extract_single_internal_noise(
+            filtered_data_df, trial_id=trial_id, feature_id=feature_id, value_id=value_id, response_id=response_id, **kwargs)
 
         return internal_noise
 
