@@ -24,13 +24,14 @@ class GLMKernel(KernelExtractor):
         """
         model = cls.train_GLM_from_data(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
 
-        kernel = cls.convert_model_to_kernel(model, feature_id)
+        kernel = cls.convert_model_to_kernel(model)
         
         return kernel
     
     @classmethod
-    def convert_model_to_kernel(csl,model, feature_id='feature'):
+    def convert_model_to_kernel(csl,model):
         # Extract coefficients
+        feature_id='feature'
         coefs = model.params[1:]  # Exclude the intercept
         kernel = pd.DataFrame({feature_id: range(len(coefs)), 'kernel_value': coefs.values}).set_index(feature_id)
         return kernel

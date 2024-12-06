@@ -79,6 +79,12 @@ class GLMHMMKernel(KernelExtractor):
                 - np.ndarray: Extracted kernel weights for each feature.
                 - np.ndarray: Posterior probabilities for each trial.
         """
+        if 'return_probs' in kwargs:
+            return_probs = kwargs['return_probs']
+        else: 
+            return_probs = False
+
+
         # Preprocess inputs and responses
         inputs, responses = cls._preprocess_inputs_and_responses(
             data_df, trial_id, stim_id, feature_id, value_id, response_id
@@ -90,10 +96,13 @@ class GLMHMMKernel(KernelExtractor):
         # Extract kernel weights
         kernel = cls._extract_kernel_from_model(model)
 
-        # Extract posterior probabilities and predicted states
-        posterior_probs, predicted_states = cls._extract_posterior_probabilities(model, responses, inputs)
-        recovered_trans_mat = cls._extract_recovered_transition_matrix(model)
-        return kernel, posterior_probs, predicted_states,recovered_trans_mat
+        if return_probs: 
+            # Extract posterior probabilities and predicted states
+            posterior_probs, predicted_states = cls._extract_posterior_probabilities(model, responses, inputs)
+            recovered_trans_mat = cls._extract_recovered_transition_matrix(model)
+            return kernel, posterior_probs, predicted_states,recovered_trans_mat
+        else:
+            return kernel
 
     @staticmethod
     def _preprocess_inputs_and_responses(data_df, trial_id, stim_id, feature_id, value_id, response_id):
@@ -112,6 +121,7 @@ class GLMHMMKernel(KernelExtractor):
             tuple: Inputs array and responses array.
         """
         # Process responses
+        # TODO: doesn't work if Int1Trial
         responses = (
             data_df[data_df[stim_id] == 0]
             .groupby(trial_id)[response_id]
@@ -176,6 +186,11 @@ class GLMHMMKernel(KernelExtractor):
                 'mean_value_1': 0.5, 'mean_value_2': 1.0, 'sigma_value_1': 1.0,
                 'sigma_value_2': 1.0, 'alpha_value': 2.0
             }
+            # best_priors = {
+            #     'mean_value_1': 0.91, 'mean_value_2': 2.43,
+            #     'sigma_value_1': 3.79, 'sigma_value_2': 2.43,
+            #     'alpha_value': 1.82
+            # }
 
         prior_means = [(0, best_priors['mean_value_1']), (best_priors['mean_value_2'], 0)]
         prior_sigmas = [(0.01, best_priors['sigma_value_1']), (best_priors['sigma_value_2'], 0.01)]
@@ -217,7 +232,14 @@ class GLMHMMKernel(KernelExtractor):
         Returns:
             np.ndarray: Kernel weights for each state.
         """
-        return model.observations.params
+
+        # return weights for state 1, w/o the previous choice term, *-1 because ssm flips the sign (for some unknown reason)
+        kernel_values = model.observations.params[1][0][:-1] * -1
+        # format as df
+        feature_id = 'feature'
+        kernel = pd.DataFrame({feature_id: range(len(kernel_values)), 
+        'kernel_value': kernel_values}).set_index(feature_id)
+        return kernel
 
     @staticmethod
     def _extract_posterior_probabilities(model, responses, inputs):
