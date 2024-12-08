@@ -12,46 +12,6 @@ from statsmodels.genmod.families import Binomial
 from .kernel_extractor import KernelExtractor
 import ssm  
 
-# class GLMHMMKernel(KernelExtractor):
-#     """
-#     This class extracts kernel weights using a Generalized Linear Model (GLM).
-#     """
-
-#     @classmethod
-#     def extract_single_kernel(cls, data_df, trial_id='trial',stim_id='stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
-#         """
-#         Extracts a single kernel by fitting a GLM to the given data.
-#         Returns a DataFrame with feature IDs and kernel values.
-#         """
-
-#         # train GLM HMM on data (possibly give priors as parameters)
-#         model = cls.train_HMM_from_data(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
-
-#         # take kernel from engaged state       
-#         kernel = cls.convert_model_to_kernel(model, feature_id)
-        
-#         return kernel
-    
-#     @classmethod
-#     def convert_model_to_kernel(csl,model, feature_id='feature'):
-#         '''
-#         Take kernel from engaged state of a trained HMM model'''
-        
-#         raise NotImplementedError()
-
-
-#     @classmethod
-#     def train_HMM_from_data(cls, data_df, trial_id='trial',stim_id='stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
-
-#         # Warning: this won't work for 1-int data (and no real way to know whether it's the case)
-
-#         # use ssm library
-#         # possibly pass priors as argument (or by default use best priors)        
-
-#         raise NotImplementedError()
-        
-#     def __str__(self):
-#         return 'GLM-HMM Kernel'
 class GLMHMMKernel(KernelExtractor):
     """
     This class extracts kernel weights using a Generalized Linear Model-Hidden Markov Model (GLM-HMM).
@@ -84,7 +44,6 @@ class GLMHMMKernel(KernelExtractor):
         else: 
             return_probs = False
 
-
         # Preprocess inputs and responses
         inputs, responses = cls._preprocess_inputs_and_responses(
             data_df, trial_id, stim_id, feature_id, value_id, response_id
@@ -103,7 +62,64 @@ class GLMHMMKernel(KernelExtractor):
             return kernel, posterior_probs, predicted_states,recovered_trans_mat
         else:
             return kernel
+            
+    @classmethod
+    def extract_transition_matrices(cls, data_df, group_ids=None, trial_id='trial', stim_id='stim',
+                                     feature_id='feature', value_id='value', response_id='response',
+                                     best_priors=None, **kwargs):
+        """
+        Extracts specific transition matrix probabilities (m[0,1] and m[1,0]) for grouped data.
 
+        Args:
+            data_df (pd.DataFrame): Input data.
+            group_ids (list of str): List of column names to group by (e.g., ['subject', 'session']).
+            trial_id (str): Column name for trial identifiers.
+            stim_id (str): Column name for stimulus identifiers.
+            feature_id (str): Column name for feature identifiers.
+            value_id (str): Column name for stimulus values.
+            response_id (str): Column name for response values.
+            best_priors (dict): Optional dictionary of best priors.
+            **kwargs: Additional arguments for training.
+
+        Returns:
+            pd.DataFrame: DataFrame with group IDs, `per` (m[0,1]), and `unper` (m[1,0]).
+        """
+        if group_ids is None:
+            raise ValueError("You must specify `group_ids` to group the data.")
+
+        # Initialize a list to store results
+        results = []
+
+        # Group the data by the specified group IDs
+        grouped = data_df.groupby(group_ids)
+
+        # Iterate through each group and fit the GLM-HMM
+        for group_values, group_data in grouped:
+            group_key = dict(zip(group_ids, group_values))  # Map group values to their respective IDs
+
+            # Preprocess inputs and responses
+            inputs, responses = cls._preprocess_inputs_and_responses(
+                group_data, trial_id, stim_id, feature_id, value_id, response_id
+            )
+
+            # Train the GLM-HMM model
+            model = cls._train_glmhmm(inputs, responses, best_priors, **kwargs)
+
+            # Extract the transition matrix
+            transition_matrix = cls._extract_recovered_transition_matrix(model)
+
+            # Extract m[0,1] and m[1,0] from the transition matrix
+            unper = transition_matrix[0, 1]
+            per = transition_matrix[1, 0]
+
+            # Store the results with the group key
+            result = {**group_key, 'per': per, 'unper': unper}
+            results.append(result)
+
+        # Convert the results to a DataFrame
+        results_df = pd.DataFrame(results)
+
+        return results_df
     @staticmethod
     def _preprocess_inputs_and_responses(data_df, trial_id, stim_id, feature_id, value_id, response_id):
         """
