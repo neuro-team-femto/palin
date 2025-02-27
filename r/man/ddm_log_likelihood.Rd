@@ -4,14 +4,14 @@
 \alias{ddm_log_likelihood}
 \title{Log-likelihood of the DDM}
 \usage{
-ddm_log_likelihood(rt, resp, par)
+ddm_log_likelihood(pars, rt, resp)
 }
 \arguments{
+\item{pars}{Numeric, should be a list of initial values for the parameters.}
+
 \item{rt}{Numeric, the response time (in \strong{seconds}).}
 
 \item{resp}{Numeric, a vector indicating the chosen stimulus at each trial.}
-
-\item{par}{Character, the optimisation method (i.e., "nlminb" or "optim").}
 }
 \value{
 The negative log-likelihood.
@@ -21,26 +21,24 @@ Computing the (negative) log-likelihood of the DDM using the \code{fddm} package
 }
 \examples{
 \dontrun{
-# importing the data
-data(self_produced_speech)
-head(self_produced_speech)
+# importing the self-voice data
+data(self_voice)
+head(self_voice)
 
 # reshaping the data
-df <- self_produced_speech |>
+df <- self_voice |>
   # removing the last block
-  filter(block < 7) |>
+  filter(block < max(block) ) |>
   # keeping only the relevant columns
-  select(participant, choice = response, RT) |>
+  select(participant, choice = resp, RT) |>
   mutate(choice = ifelse(test = choice == "stim1", yes = 1, no = 2) )
 
-# splitting data by participant
-df_ln <- df |> filter(participant == "LN")
-df_mm <- df |> filter(participant == "MM")
+# splitting data by participant (keeping only the first one)
+df_ppt <- df |> filter(participant == unique(participant)[1])
 
 # computing the (negative) log-likelihood given some data and parameter values
 # pars are a, v, t0, w, sv
-ddm_log_likelihood(rt = df_ln$RT, resp = df_ln$choice, par = c(1, 1, 0, 0.5, 0) )
-ddm_log_likelihood(rt = df_mm$RT, resp = df_mm$choice, par = c(1, 1, 0, 0.5, 0) )
+ddm_log_likelihood(rt = df_ppt$RT, resp = df_ppt$choice, par = c(1, 1, 0, 0.5, 0) )
 }
 
 }
