@@ -133,6 +133,11 @@ class AgreementMethod(InternalNoiseExtractor):
             raise ValueError('no model file provided for AgreementMethod: use AgreementMethod.build_model() first') 
         else: 
             model_df = pd.read_csv(agreement_model_file)
+            # issue error if the model file has several values/runs per internal noise level
+            if (model_df.groupby(['internal_noise_std','criteria']).prob_agree.count()>1).any(): 
+                print('Warning: the provided model has several runs per value; applying groupby')
+                model_df = model_df.groupby(['internal_noise_std','criteria'], 
+                    as_index=False)[AgreementStatistics.get_metric_names()].mean() 
                 
         # find internal_noise & criteria settings that minimizes distance to prob_agree and prob_first 
         model_df['dist'] = model_df.apply(lambda row: (row.prob_agree-prob_agree)**2 + (row.prob_first-prob_first)**2, axis=1)
@@ -179,7 +184,7 @@ class AgreementMethod(InternalNoiseExtractor):
         sim_df = sim.run_all(n_runs=n_runs)
         
         # average measures over all runs
-        sim_df.groupby(['internal_noise_std','criteria'])[AgreementStatistics.get_metric_names()].mean()
+        sim_df = sim_df.groupby(['internal_noise_std','criteria'])[AgreementStatistics.get_metric_names()].mean()
         
         sim_df.to_csv(agreement_model_file)
 
