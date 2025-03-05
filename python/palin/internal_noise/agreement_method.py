@@ -132,8 +132,8 @@ class AgreementMethod(InternalNoiseExtractor):
         if (not agreement_model_file) or (not os.path.isfile(agreement_model_file)): 
             raise ValueError('no model file provided for AgreementMethod: use AgreementMethod.build_model() first') 
         else: 
-            model_df = pd.read_csv(agreement_model_file, index_col=0)
-        
+            model_df = pd.read_csv(agreement_model_file)
+                
         # find internal_noise & criteria settings that minimizes distance to prob_agree and prob_first 
         model_df['dist'] = model_df.apply(lambda row: (row.prob_agree-prob_agree)**2 + (row.prob_first-prob_first)**2, axis=1)
 
