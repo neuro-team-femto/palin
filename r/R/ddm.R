@@ -2,48 +2,49 @@
 #'
 #' Computing the (negative) log-likelihood of the DDM using the `fddm` package.
 #'
+#' @param pars Numeric, should be a list of initial values for the parameters.
 #' @param rt Numeric, the response time (in **seconds**).
 #' @param resp Numeric, a vector indicating the chosen stimulus at each trial.
-#' @param par Character, the optimisation method (i.e., "nlminb" or "optim").
 #'
 #' @return The negative log-likelihood.
 #'
 #' @examples
 #' \dontrun{
-#' # importing the data
-#' data(self_produced_speech)
-#' head(self_produced_speech)
+#' # importing the self-voice data
+#' data(self_voice)
+#' head(self_voice)
 #'
 #' # reshaping the data
-#' df <- self_produced_speech |>
+#' df <- self_voice |>
 #'   # removing the last block
-#'   filter(block < 7) |>
+#'   filter(block < max(block) ) |>
 #'   # keeping only the relevant columns
-#'   select(participant, choice = response, RT) |>
+#'   select(participant, choice = resp, RT) |>
 #'   mutate(choice = ifelse(test = choice == "stim1", yes = 1, no = 2) )
 #'
-#' # splitting data by participant
-#' df_ln <- df |> filter(participant == "LN")
-#' df_mm <- df |> filter(participant == "MM")
+#' # splitting data by participant (keeping only the first one)
+#' df_ppt <- df |> filter(participant == unique(participant)[1])
 #'
 #' # computing the (negative) log-likelihood given some data and parameter values
 #' # pars are a, v, t0, w, sv
-#' ddm_log_likelihood(rt = df_ln$RT, resp = df_ln$choice, par = c(1, 1, 0, 0.5, 0) )
-#' ddm_log_likelihood(rt = df_mm$RT, resp = df_mm$choice, par = c(1, 1, 0, 0.5, 0) )
+#' ddm_log_likelihood(rt = df_ppt$RT, resp = df_ppt$choice, par = c(1, 1, 0, 0.5, 0) )
 #' }
 #'
 #' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@gmail.com}.
 #'
 #' @export
 
-ddm_log_likelihood <- function (rt, resp, par) {
+ddm_log_likelihood <- function (pars, rt, resp) {
 
+    # computing the DDM log-likelihood
+    # see https://cran.rstudio.org/web/packages/fddm/vignettes/example.html
     dens <- fddm::dfddm(
         rt = rt, response = resp,
-        a = par[[1]], v = par[[2]], t0 = par[[3]], w = par[[4]], sv = par[[5]],
-        log = TRUE
+        v = pars[[1]], a = pars[[2]], t0 = pars[[3]], w = pars[[4]], sv = pars[[5]],
+        err_tol = 1e-6, log = TRUE
         )
 
+    # returning the negative log-likelihood
     return (ifelse(test = any(!is.finite(dens) ), yes = 1e6, no = -sum(dens) ) )
 
 }
@@ -54,9 +55,12 @@ ddm_log_likelihood <- function (rt, resp, par) {
 #'
 #' @param rt Numeric, the response time (in **seconds**).
 #' @param resp Numeric, a vector indicating the chosen stimulus at each trial.
-#' @param method Character, the optimisation method (i.e., "nlminb" or "optim").
+#' @param method Character, the optimisation method (i.e., "nlminb", "optim", or "DEoptim").
+#' @param maxit Numeric, maximum number of iterations.
+#' @param cluster Character, existing parallel cluster object. If provided, overrides + specified parallelType.
+#' @param verbose Boolean, whether to print progress during fitting.
 #'
-#' @return The optimised parameter values and further output from nlminb() or optim().
+#' @return The optimised parameter values and further optimisation output.
 #'
 #' @importFrom stats nlminb optim
 #' @export
@@ -64,48 +68,76 @@ ddm_log_likelihood <- function (rt, resp, par) {
 #' @examples
 #' \dontrun{
 #' # importing the data
-#' data(self_produced_speech)
-#' head(self_produced_speech)
+#' data(self_voice)
+#' head(self_voice)
 #'
 #' # reshaping the data
-#' df <- self_produced_speech |>
+#' df <- self_voice |>
 #'   # removing the last block
 #'   filter(block < 7) |>
 #'   # keeping only the relevant columns
-#'   select(participant, choice = response, RT) |>
+#'   select(participant, choice = resp, RT) |>
 #'   mutate(choice = ifelse(test = choice == "stim1", yes = 1, no = 2) )
 #'
-#' # splitting data by participant
-#' df_ln <- df |> filter(participant == "LN")
-#' df_mm <- df |> filter(participant == "MM")
+#' # splitting data by participant (keeping only the first one)
+#' df_ppt <- df |> filter(participant == unique(participant)[1])
 #'
 #' # fitting the full DDM for LN and MM (pars are a, v, t0, w, sv)
-#' ddm_fitting(rt = df_ln$RT, resp = df_ln$choice, method = "nlminb")$par
-#' ddm_fitting(rt = df_mm$RT, resp = df_mm$choice, method = "nlminb")$par
+#' ddm_fitting(rt = df_ppt$RT, resp = df_ppt$choice, method = "nlminb")$par
 #' }
 
-ddm_fitting <- function (rt, resp, method = c("nlminb", "optim") ) {
+ddm_fitting <- function (
+        rt, resp,
+        method = c("nlminb", "optim", "DEoptim"),
+        maxit = 1e3,
+        cluster = NULL,
+        verbose = FALSE
+        ) {
 
     if (method == "nlminb") {
 
         fit <- stats::nlminb(
-            start = c(1, 1, 0, 0.5, 0),
+            start = c(0, 0.1, 0.1, 0.5, 0.1),
             objective = ddm_log_likelihood,
             rt = rt, resp = resp,
-            lower = c(0.01, -Inf, 0, 0, 0),
-            upper = c(Inf, Inf, Inf, 1, Inf)
+            lower = c(-5, 0, 0, 0, 0),
+            upper = c(+5, 5, 5, 1, 5)
             )
 
         } else if (method == "optim") {
 
             fit <- stats::optim(
-                par = c(1, 1, 0, 0.5, 0),
+                par = c(0, 0.1, 0.1, 0.5, 0.1),
                 fn = ddm_log_likelihood,
                 rt = rt, resp = resp,
                 method = "Nelder-Mead"
                 )
 
-            }
+            } else if (method == "DEoptim") {
+
+                # starting the optimisation
+                fit <- DEoptim::DEoptim(
+                    fn = ddm_log_likelihood,
+                    rt = rt, resp = resp,
+                    lower = c(-5, 0, 0, 0, 0),
+                    upper = c(+5, 5, 5, 1, 5),
+                    control = DEoptim::DEoptim.control(
+                        # maximum number of iterations
+                        itermax = maxit,
+                        # printing progress
+                        trace = verbose,
+                        # value to reach (defaults to -Inf)
+                        # VTR = 0,
+                        # using all available cores by default
+                        parallelType = "parallel",
+                        # defining the package to be imported on each parallel core
+                        packages = c("DEoptim", "dplyr", "tidyr", "fddm"),
+                        # defining the cluster
+                        cluster = cluster
+                        )
+                    )
+
+                }
 
     return (fit)
 

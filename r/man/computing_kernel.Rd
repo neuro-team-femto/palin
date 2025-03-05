@@ -11,9 +11,10 @@ computing_kernel(
 )
 }
 \arguments{
-\item{data}{Dataframe, containing the data...}
+\item{data}{Dataframe, with reverse correlation data. Should contain the
+following columns: participant, block, trial, resp, f, eq.}
 
-\item{method}{Character, the computation method, either "difference", "glm", or "glmm".}
+\item{method}{Character, the kernel computation method, either "difference", "glm", or "glmm".}
 
 \item{double_pass}{Logical, indicating whether the last block was repeated.}
 }
@@ -23,21 +24,21 @@ The original data augmented with the kernel.
 \description{
 Computing the kernel from 2AFC data. It should be noted that when using the
 "glm" method, the group-level (average) kernel is simply averaged from the
-individual-level kernels. To obtain \strong{shrinked} (i.e., adjusted) group-level
-kernels, one needs to specify the "glmm" method (work in progress).
+individual-level kernels. To obtain \strong{shrunk} (i.e., adjusted) group-level
+kernels, one needs to specify the "glmm" method.
 }
 \examples{
 \dontrun{
-# importing the data
-data(self_produced_speech_full)
-head(self_produced_speech_full)
+# importing the self-voice data
+data(self_voice)
+head(self_voice)
 
-# computing the kernel
-computing_kernel(data = self_produced_speech_full, method = "difference")
+# computing the kernel per participant
+computing_kernel(data = self_voice, method = "difference")
 
 # plotting it
-computing_kernel(data = self_produced_speech_full, method = "difference") |> plot()
-computing_kernel(data = self_produced_speech_full, method = "glm") |> plot()
+computing_kernel(data = self_voice, method = "difference") |> plot()
+computing_kernel(data = self_voice, method = "glm") |> plot()
 }
 
 }

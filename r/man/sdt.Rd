@@ -4,15 +4,15 @@
 \alias{sdt}
 \title{Generating data from the SDT model and computing the MSE}
 \usage{
-sdt(par, data, ntrials = 10000)
+sdt(pars, data, ntrials = 10000)
 }
 \arguments{
-\item{par}{Numeric, should be a list of initial values for the response bias
+\item{pars}{Numeric, should be a list of initial values for the response bias
 and the internal noise.}
 
 \item{data}{Dataframe, with observed prop_agree and prop_int1.}
 
-\item{ntrials}{Numeric, number of trials per block (defaults to 10k).}
+\item{ntrials}{Numeric, number of trials per block (defaults to 1e4).}
 }
 \value{
 Numeric, the MSE.
@@ -34,7 +34,7 @@ sdt(par = c(0, 1), data = df)
 \references{
 Goupil, L., Ponsot, E., Richardson, D. et al. (2021). Listeners'
 perceptions of the certainty and honesty of a speaker are associated with a
-common prosodic signature. Nat Commun 12, 861. \url{https://doi.org/10.1038/s41467-020-20649-4}.
+common prosodic signature. \emph{Nature Communications 12}, 861. \url{https://doi.org/10.1038/s41467-020-20649-4}.
 }
 \author{
 Ladislas Nalborczyk \email{ladislas.nalborczyk@gmail.com}.

@@ -4,17 +4,30 @@
 \alias{ddm_fitting}
 \title{Fitting the full DDM}
 \usage{
-ddm_fitting(rt, resp, method = c("nlminb", "optim"))
+ddm_fitting(
+  rt,
+  resp,
+  method = c("nlminb", "optim", "DEoptim"),
+  maxit = 1000,
+  cluster = NULL,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{rt}{Numeric, the response time (in \strong{seconds}).}
 
 \item{resp}{Numeric, a vector indicating the chosen stimulus at each trial.}
 
-\item{method}{Character, the optimisation method (i.e., "nlminb" or "optim").}
+\item{method}{Character, the optimisation method (i.e., "nlminb", "optim", or "DEoptim").}
+
+\item{maxit}{Numeric, maximum number of iterations.}
+
+\item{cluster}{Character, existing parallel cluster object. If provided, overrides + specified parallelType.}
+
+\item{verbose}{Boolean, whether to print progress during fitting.}
 }
 \value{
-The optimised parameter values and further output from nlminb() or optim().
+The optimised parameter values and further optimisation output.
 }
 \description{
 Fitting the full DDM using the \code{fddm} package.
@@ -22,23 +35,21 @@ Fitting the full DDM using the \code{fddm} package.
 \examples{
 \dontrun{
 # importing the data
-data(self_produced_speech)
-head(self_produced_speech)
+data(self_voice)
+head(self_voice)
 
 # reshaping the data
-df <- self_produced_speech |>
+df <- self_voice |>
   # removing the last block
   filter(block < 7) |>
   # keeping only the relevant columns
-  select(participant, choice = response, RT) |>
+  select(participant, choice = resp, RT) |>
   mutate(choice = ifelse(test = choice == "stim1", yes = 1, no = 2) )
 
-# splitting data by participant
-df_ln <- df |> filter(participant == "LN")
-df_mm <- df |> filter(participant == "MM")
+# splitting data by participant (keeping only the first one)
+df_ppt <- df |> filter(participant == unique(participant)[1])
 
 # fitting the full DDM for LN and MM (pars are a, v, t0, w, sv)
-ddm_fitting(rt = df_ln$RT, resp = df_ln$choice, method = "nlminb")$par
-ddm_fitting(rt = df_mm$RT, resp = df_mm$choice, method = "nlminb")$par
+ddm_fitting(rt = df_ppt$RT, resp = df_ppt$choice, method = "nlminb")$par
 }
 }
