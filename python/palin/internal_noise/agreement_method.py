@@ -151,7 +151,7 @@ class AgreementMethod(InternalNoiseExtractor):
         return best_match.internal_noise_std.iloc[0], best_match.criteria.iloc[0]
 
     @classmethod
-    def build_model(cls,agreement_model_file = './double_pass_model.csv', internal_noise_range=np.arange(0,5,.1),criteria_range=np.arange(-5,5,1), n_repeated_trials=100, n_runs=10): 
+    def build_model(cls,agreement_model_file = './double_pass_model.csv', internal_noise_range=np.arange(0,5,.1),criteria_range=np.arange(-5,5,1), n_repeated_trials=100, n_runs=10, **kwargs): 
         '''
         Build a model that associates a range of internal noise and criteria values with their corresponding (simulated) prob_agree and prob_first.
         This uses a simulated LinearObserver, and returns the model as a dataframe 
@@ -167,6 +167,13 @@ class AgreementMethod(InternalNoiseExtractor):
         from ..simulation.simulation import Simulation as Sim
         from .double_pass import DoublePass
         
+        if 'internal_noise_extractor' not in kwargs:
+            kwargs['internal_noise_extractor'] = [DoublePass]
+
+        # make kwarg values iterables if needed
+        for kw in kwargs:
+            if not isinstance(kwargs[kw], list): 
+                kwargs[kw] = [kwargs[kw]]  
 
         observer_params = {'kernel':[[1]],
                    'internal_noise_std':internal_noise_range, 
@@ -176,7 +183,8 @@ class AgreementMethod(InternalNoiseExtractor):
                      'trial_type': [Int2Trial],
                      'n_features': [1],
                      'external_noise_std': [1]}
-        analyser_params = {'internal_noise_extractor':[DoublePass]}
+        analyser_params = kwargs
+        #{'internal_noise_extractor':[internal_noise_extractor]}
 
         ## TODO CHECK HOW to use AgreementStatistics instead of DoublePassStatistics here
 
