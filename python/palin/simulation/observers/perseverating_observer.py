@@ -78,3 +78,9 @@ class PerseveratingObserver(Observer):
         for trial in experiment.trials:
             responses.append(self.respond_to_trial(trial, experiment))
         return responses
+
+    def get_latest_states(self):
+        """
+        Returns the sequence of states (ENG/PER) from the last experiment.
+        """
+        return self.last_state_sequence

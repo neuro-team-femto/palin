@@ -85,7 +85,7 @@ class GLMKernel(KernelExtractor):
             n_jitter = 0
         else: 
             n_jitter = max(5,int(np.ceil(jitter*data_df[trial_id].nunique())))
-        print('Adding jitter to %d trials'%n_jitter)
+        #print('Adding jitter to %d trials'%n_jitter)
         
         # select n_jitter smallest trials by trial intensity (don't randomize high-intensity trials)
         data_df['trial_intensity'] = data_df.filter(like='diff_').abs().sum(axis=1)

@@ -139,10 +139,10 @@ class GLMHMMKernel(KernelExtractor):
         # Process responses
         # TODO: doesn't work if Int1Trial
         responses = (
-            data_df[data_df[stim_id] == 0]
+            data_df[data_df[stim_id] == 1]
             .groupby(trial_id)[response_id]
             .first()
-            .replace({True: 0, False: 1})
+            .replace({True: 1, False: 0})
             .tolist()
         )
 
@@ -199,14 +199,9 @@ class GLMHMMKernel(KernelExtractor):
         # Use best priors if provided, else default priors
         if best_priors is None:
             best_priors = {
-                'mean_value_1': 0.5, 'mean_value_2': 1.0, 'sigma_value_1': 1.0,
-                'sigma_value_2': 1.0, 'alpha_value': 2.0
+                'mean_value_1': 0.91, 'mean_value_2': 2.43, 'sigma_value_1': 3.79,
+                'sigma_value_2': 2.43, 'alpha_value': 1.82
             }
-            # best_priors = {
-            #     'mean_value_1': 0.91, 'mean_value_2': 2.43,
-            #     'sigma_value_1': 3.79, 'sigma_value_2': 2.43,
-            #     'alpha_value': 1.82
-            # }
 
         prior_means = [(0, best_priors['mean_value_1']), (best_priors['mean_value_2'], 0)]
         prior_sigmas = [(0.01, best_priors['sigma_value_1']), (best_priors['sigma_value_2'], 0.01)]
@@ -221,7 +216,7 @@ class GLMHMMKernel(KernelExtractor):
         )
 
         # Fit the model
-        glm_hmm.fit(responses, inputs=inputs, method="em", num_iters=200, tolerance=1e-3)
+        glm_hmm.fit(responses, inputs=inputs, method="em", num_iters=300, tolerance=1e-3)
 
         return glm_hmm
     @staticmethod
@@ -250,7 +245,7 @@ class GLMHMMKernel(KernelExtractor):
         """
 
         # return weights for state 1, w/o the previous choice term, *-1 because ssm flips the sign (for some unknown reason)
-        kernel_values = model.observations.params[1][0][:-1] * -1
+        kernel_values = model.observations.params[1][0][:-1]*-1
         # format as df
         feature_id = 'feature'
         kernel = pd.DataFrame({feature_id: range(len(kernel_values)), 
