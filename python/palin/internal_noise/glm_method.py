@@ -120,7 +120,7 @@ class GLMMethod(InternalNoiseExtractor):
             raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
 
         # extract CI on weights from a GLM fit 
-        norm_max_feature_ci,max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, feature_id, value_id, response_id)
+        norm_max_feature_ci, max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, feature_id, value_id, response_id)
 
         # convert to internal noise 
         model_file = kwargs['glm_model_file']
