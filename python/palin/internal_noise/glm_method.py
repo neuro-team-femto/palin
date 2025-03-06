@@ -69,6 +69,7 @@ class GLMMethod(InternalNoiseExtractor):
         
     @classmethod
     def extract_norm_ci_value(cls, data_df, trial_id='trial', feature_id='feature', value_id='value', response_id='response'):
+        
          # Use GLMKernel to fit GLM and extract kernel and confidence intervals
         model = GLMKernel.train_GLM_from_data(data_df=data_df,
             feature_id=feature_id,
@@ -96,7 +97,7 @@ class GLMMethod(InternalNoiseExtractor):
         # scale by nb of trials
         norm_max_feature_ci = max_feature_ci * np.sqrt(data_df[trial_id].nunique()) 
         
-        return norm_max_feature_ci
+        return norm_max_feature_ci, max_feature_ci
         
     
     @classmethod
@@ -119,7 +120,7 @@ class GLMMethod(InternalNoiseExtractor):
             raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
 
         # extract CI on weights from a GLM fit 
-        norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, feature_id, value_id, response_id)
+        norm_max_feature_ci,max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, feature_id, value_id, response_id)
 
         # convert to internal noise 
         model_file = kwargs['glm_model_file']
