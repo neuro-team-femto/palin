@@ -1,7 +1,7 @@
 Package: palin
 Title: Utility functions for analysing reverse correlation data
-Version: 0.0.2
-Date: 2025-02-27
+Version: 0.0.3
+Date: 2025-03-10
 Authors@R:
     c(
     person(
@@ -28,6 +28,7 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.1
 Imports:
+    assertthat,
     data.table,
     DEoptim,
     dplyr,
@@ -42,8 +43,8 @@ Imports:
     progressr,
     rlang,
     scales,
-    stringr,
-    tidyr
+    tidyr,
+    tidyselect
 Depends: 
     R (>= 4.2.0)
 LazyData: true

@@ -11,7 +11,9 @@ self_voice <- read.csv(file = here::here("./data-raw/self_voice.csv") ) |>
     # removing a participant who missed a block
     dplyr::filter(participant != unique(participant)[16]) |>
     # keeping only the first 5 participants to reduce the size of the data
-    dplyr::filter(participant %in% unique(participant)[1:5])
+    dplyr::filter(participant %in% unique(participant)[1:5]) |>
+    # renaming some columns
+    rename(feature = f, value = eq, response = resp)
 
 # exporting to .rda
 usethis::use_data(self_voice, overwrite = TRUE, compress = "xz")

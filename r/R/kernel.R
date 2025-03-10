@@ -5,15 +5,20 @@
 #' individual-level kernels. To obtain **shrunk** (i.e., adjusted) group-level
 #' kernels, one needs to specify the "glmm" method.
 #'
-#' @param data Dataframe, with reverse correlation data. Should contain the
-#' following columns: participant, block, trial, resp, f, eq.
+#' @param data Dataframe, with reverse correlation data (in long format).
+#' @param participant_id Numeric/Character/Factor, column in data specifying the participant ID.
+#' @param block_id Numeric, column in data specifying the block ID.
+#' @param trial_id Numeric, column in data specifying the trial ID.
+#' @param feature_id Numeric/Factor, column in data specifying the feature.
+#' @param value_id Numeric, column in data specifying the feature value.
+#' @param response_id Numeric, column in data specifying the response.
 #' @param method Character, the kernel computation method, either "difference", "glm", or "glmm".
 #' @param double_pass Logical, indicating whether the last block was repeated.
 #'
 #' @return The original data augmented with the kernel.
 #'
 #' @importFrom rlang .data
-#' @importFrom stats coef
+#' @importFrom stats coef as.formula
 #'
 #' @examples
 #' \dontrun{
@@ -34,7 +39,10 @@
 #' @export
 
 computing_kernel <- function (
-        data, method = c("difference", "glm", "glmm"),
+        data,
+        participant_id = "participant", block_id = "block", trial_id = "trial",
+        feature_id = "feature", value_id = "value", response_id = "response",
+        method = c("difference", "glm", "glmm"),
         double_pass = TRUE
         ) {
 
@@ -46,8 +54,18 @@ computing_kernel <- function (
     stopifnot("method must be a character..." = is.character(method) )
     stopifnot("double_pass must be a logical..." = is.logical(double_pass) )
 
+    # checking required column names
+    required_columns <- c(participant_id, block_id, trial_id, feature_id, value_id, response_id)
+    assertthat::assert_that(
+        all(required_columns %in% colnames(data) ),
+        msg = paste(
+            "Missing columns:",
+            paste(setdiff(required_columns, colnames(data) ), collapse = ", ")
+            )
+        )
+
     # if double-pass was used, remove the last (repeated) block
-    if (double_pass) data <- data |> dplyr::filter(.data$block != max(.data$block) )
+    if (double_pass) data <- data |> dplyr::filter(.data[[block_id]] != max(.data[[block_id]]) )
 
     if (method == "difference") {
 
@@ -55,11 +73,11 @@ computing_kernel <- function (
         # mean(filter gains of voices classified as mine) - mean(filter gains of voices classified as not-mine)
         kernel <- data |>
             # grouping by participant, frequency band, and response
-            dplyr::group_by(.data$participant, .data$f, .data$resp) |>
+            dplyr::group_by(.data[[participant_id]], .data[[feature_id]], .data[[response_id]]) |>
             # computing the average gain
-            dplyr::summarise(filter_mean_gain = mean(.data$eq) ) |>
+            dplyr::summarise(mean_value = mean(.data[[value_id]]) ) |>
             dplyr::ungroup() |>
-            tidyr::pivot_wider(names_from = .data$resp, values_from = .data$filter_mean_gain) |>
+            tidyr::pivot_wider(names_from = .data[[response_id]], values_from = .data$mean_value) |>
             # renaming the columns
             dplyr::rename(negative = .data$`0`, positive = .data$`1`) |>
             # computing the kernel
@@ -67,11 +85,13 @@ computing_kernel <- function (
             dplyr::mutate(kernel_gain = .data$positive - .data$negative) |>
             # kernels are then normalized for each participant by dividing them
             # by the square root of the sum of their squared values
-            dplyr::group_by(.data$participant) |>
+            dplyr::group_by(.data[[participant_id]]) |>
             # as in the code of Ponsot et al. smile paper
-            dplyr::mutate(norm_gain1 = .data$kernel_gain / sqrt(mean(.data$kernel_gain^2) ) ) |>
+            # dplyr::mutate(norm_gain1 = .data$kernel_gain / sqrt(mean(.data$kernel_gain^2) ) ) |>
             # as in the Ponsot et al. PNAS paper and Goupil et al. NatureCom paper
-            dplyr::mutate(norm_gain2 = .data$kernel_gain / sum(abs(.data$kernel_gain) ) ) |>
+            # dplyr::mutate(norm_gain2 = .data$kernel_gain / sum(abs(.data$kernel_gain) ) ) |>
+            # or just the RMSE normalised kernel gain
+            dplyr::mutate(norm_kernel_gain = .data$kernel_gain / sqrt(mean(.data$kernel_gain^2) ) ) |>
             dplyr::ungroup()
 
         # setting the class of the resulting object
@@ -79,56 +99,60 @@ computing_kernel <- function (
 
     } else if (method == "glm") {
 
+        # constructing the formula dynamically
+        formula_str <- paste(response_id, "~ 1 +", value_id, "*", feature_id)
+        formula_obj <- stats::as.formula(formula_str)
+
         # fitting a generalised (binomial) linear model
         model <- stats::glm(
-            formula = resp ~ 1 + eq * f,
+            formula = formula_obj,
             family = stats::binomial(),
-            data = data |> dplyr::mutate(f = as.factor(.data$f) )
+            data = data |> dplyr::mutate(
+                dplyr::across(tidyselect::all_of(feature_id), as.factor)
+                )
             )
 
-        # extracting and reshaping the coefficients
-        coefficients <- data.frame(stats::coef(model) ) |>
-            dplyr::mutate(rowname = rownames(data.frame(stats::coef(model) ) ) ) |>
-            dplyr::filter(stringr::str_detect(string = .data$rowname, pattern = ":") ) |>
-            dplyr::pull(.data$stats..coef.model.)
+        # retrieving the coefficients (slopes)
+        coefficients <- stats::coef(model)
 
-        # taking into account the average affect of eq
-        coefficients <- coefficients + stats::coef(model)[["eq"]]
+        # retrieving the confidence intervals
+        conf_intervals <- stats::confint(model)
 
-        kernel <- data |>
-            # grouping by participant, frequency band, and response
-            dplyr::group_by(.data$participant, .data$f, .data$resp) |>
-            # computing the average gain
-            dplyr::summarise(filter_mean_gain = mean(.data$eq) ) |>
-            dplyr::ungroup() |>
-            tidyr::pivot_wider(names_from = .data$resp, values_from = .data$filter_mean_gain) |>
-            # computing the kernel
-            dplyr::filter(.data$f != 0) |>
-            dplyr::mutate(kernel_gain = rep(coefficients, dplyr::n_distinct(data$participant) ) ) |>
-            # kernels are then normalized for each participant by dividing them
-            # by the square root of the sum of their squared values
-            dplyr::group_by(.data$participant) |>
-            # as in the code of Ponsot et al. smile paper
-            dplyr::mutate(norm_gain1 = .data$kernel_gain / sqrt(mean(.data$kernel_gain^2) ) ) |>
-            # as in the Ponsot et al. PNAS paper and Goupil et al. NatureCom paper
-            dplyr::mutate(norm_gain2 = .data$kernel_gain / sum(abs(.data$kernel_gain) ) ) |>
-            dplyr::ungroup()
+        # identifying the reference level
+        reference_level <- levels(as.factor(data[[feature_id]]) )[1]
+        reference_slope <- coefficients[value_id]
+        reference_ci <- conf_intervals[value_id, ]
+
+        # extracting the interaction terms
+        interaction_terms <- grep("value:feature", names(coefficients), value = TRUE)
+        interaction_coefs <- coefficients[interaction_terms]
+        interaction_cis <- conf_intervals[interaction_terms, , drop = FALSE]
+
+        # computing the slopes for each feature level
+        feature_levels <- c(reference_level, gsub("value:feature", "", interaction_terms) )
+        slopes <- as.numeric(c(reference_slope, reference_slope + interaction_coefs) )
+        ci_lower <- as.numeric(c(reference_ci[1], reference_ci[1] + interaction_cis[, 1]) )
+        ci_upper <- as.numeric(c(reference_ci[2], reference_ci[2] + interaction_cis[, 2]) )
+
+        # creating a dataframe with results
+        kernel <- data.frame(
+            feature = feature_levels,
+            kernel = slopes,
+            lower = ci_lower,
+            upper = ci_upper
+            )
 
         # setting the class of the resulting object
-        class(kernel) <- c("kernel", "data.frame")
+        class(kernel) <- c("glm_kernel", "data.frame")
 
     } else if (method == "glmm") {
 
         # reshaping the data
         data2 <- data |>
-            # focusing on speech-relevant frequency bands
-            dplyr::filter(.data$f > 100) |>
-            dplyr::filter(.data$f < 10000) |>
             # removing the double-pass block (if needed)
-            # {if (double_pass) dplyr::filter(., .data$block < max(.data$block) ) else .} |>
-            dplyr::filter(if (double_pass) .data$block < max(.data$block) else TRUE) |>
-            dplyr::mutate(f = as.factor(.data$f) ) |>
-            dplyr::mutate(participant = as.factor(.data$participant) ) |>
+            dplyr::filter(if (double_pass) .data[[block_id]] < max(.data[[block_id]]) else TRUE) |>
+            dplyr::mutate(feature = as.factor(.data[[feature_id]]) ) |>
+            dplyr::mutate(participant = as.factor(.data[[participant_id]]) ) |>
             # converting to data table
             data.table::as.data.table()
 
@@ -144,6 +168,10 @@ computing_kernel <- function (
         #     family = stats::binomial(),
         #     data = data |> dplyr::mutate(f = as.factor(.data$f) )
         #     )
+
+        # constructing the formula dynamically
+        formula_str <- paste(response_id, "~ 1 +", value_id, "*", feature_id)
+        formula_obj <- as.formula(formula_str)
 
         # using a GAM instead
         # see https://m-clark.github.io/posts/2019-10-20-big-mixed-models/
@@ -238,7 +266,7 @@ computing_kernel <- function (
         kernel <- dplyr::bind_rows(kernel, group_kernel)
 
         # setting the class of the resulting object
-        class(kernel) <- c("multilevel_kernel", "data.frame")
+        class(kernel) <- c("glmm_kernel", "data.frame")
 
     # } else if (method == "bglmm") {
     #
@@ -274,7 +302,8 @@ computing_kernel <- function (
 #' @export
 
 plot.kernel <- function (
-        x, normalisation_method = c("kernel_gain", "norm_gain1", "norm_gain2"),
+        x, normalisation_method = c("kernel_gain", "norm_kernel_gain"),
+        log = TRUE,
         ...
         ) {
 
@@ -283,13 +312,9 @@ plot.kernel <- function (
 
     # plotting the filters
     x |>
-        # keeping only the relevant frequency bands for human speech
-        # dplyr::filter(.data$f > 0 & .data$f < 10000) |>
-        # dplyr::filter(.data$f > 0) |>
-        # plotting it
         ggplot2::ggplot(
             ggplot2::aes(
-                x = .data$f,
+                x = .data$feature,
                 y = .data$kernel_gain,
                 colour = .data$participant,
                 fill = .data$participant
@@ -300,7 +325,7 @@ plot.kernel <- function (
         ggplot2::geom_line(size = 0.5, alpha = 0.3, show.legend = FALSE) +
         # plotting the average filter
         ggplot2::stat_summary(
-            ggplot2::aes(x = .data$f, y = .data[[normalisation_method]]),
+            ggplot2::aes(x = .data$feature, y = .data[[normalisation_method]]),
             geom = "line",
             fun = mean,
             size = 1,
@@ -309,35 +334,82 @@ plot.kernel <- function (
         # aesthetics
         ggplot2::theme_bw(base_family = "Open Sans", base_size = 12) +
         ggplot2::scale_colour_manual(
-            values = MetBrewer::met.brewer(name = "Johnson", n = dplyr::n_distinct(x$participant) )
+            values = MetBrewer::met.brewer(
+                name = "Johnson",
+                n = dplyr::n_distinct(x$participant)
+                )
             ) +
         ggplot2::scale_fill_manual(
-            values = MetBrewer::met.brewer(name = "Johnson", n = dplyr::n_distinct(x$participant) )
+            values = MetBrewer::met.brewer(
+                name = "Johnson",
+                n = dplyr::n_distinct(x$participant)
+                )
             ) +
         {if (normalisation_method == "kernel_gain") ggplot2::labs(
             x = "Frequency (Hz)",
-            y = "Filter amplitude (a.u.)"
+            y = "Kernel amplitude (a.u.)"
             )} +
         {if (normalisation_method != "kernel_gain") ggplot2::labs(
             x = "Frequency (Hz)",
-            y = "Normalised filter amplitude (a.u.)"
+            y = "Normalised kernel amplitude (a.u.)"
             )} +
-        ggplot2::scale_x_log10(
+        {if (log) ggplot2::scale_x_log10(
             breaks = scales::breaks_log(n = 5, base = 10),
             labels = scales::label_log(base = 10)
-            ) +
-        ggplot2::annotation_logticks(sides = "b")
+            )} +
+        {if (log) ggplot2::annotation_logticks(sides = "b")}
 
 }
 
 #' @export
 
-plot.multilevel_kernel <- function (x, ...) {
+plot.glm_kernel <- function (x, log = TRUE, ...) {
 
     x |>
+        dplyr::filter(.data$feature > 0) |>
         ggplot2::ggplot(
             ggplot2::aes(
-                x = as.numeric(.data$f),
+                x = as.numeric(.data$feature),
+                y = .data$kernel
+                )
+            ) +
+        ggplot2::geom_hline(yintercept = 0, linetype = 2) +
+        # plotting the group-level average kernel
+        ggplot2::geom_ribbon(
+            ggplot2::aes(ymin = .data$lower, ymax = .data$upper),
+            alpha = 0.2
+            ) +
+        ggplot2::geom_line(linewidth = 1) +
+        ggplot2::labs(
+            x = "Frequency (Hz)",
+            y = "Kernel amplitude (a.u.)"
+            ) +
+        # aesthetics
+        ggplot2::theme_bw(base_family = "Open Sans", base_size = 12) +
+        ggplot2::scale_colour_manual(
+            values = MetBrewer::met.brewer(
+                name = "Johnson",
+                n = dplyr::n_distinct(x$participant)
+                )
+            ) +
+        ggplot2::theme(legend.position = "none") +
+        {if (log) ggplot2::scale_x_log10(
+            breaks = scales::breaks_log(n = 5, base = 10),
+            labels = scales::label_log(base = 10)
+            )} +
+        {if (log) ggplot2::annotation_logticks(sides = "b")}
+
+}
+
+#' @export
+
+plot.glmm_kernel <- function (x, log = TRUE, ...) {
+
+    x |>
+        dplyr::filter(.data$feature > 0) |>
+        ggplot2::ggplot(
+            ggplot2::aes(
+                x = as.numeric(.data$feature),
                 y = .data$kernel_gain,
                 group = .data$participant,
                 color = .data$participant
@@ -357,7 +429,7 @@ plot.multilevel_kernel <- function (x, ...) {
             ) +
         ggplot2::labs(
             x = "Frequency (Hz)",
-            y = "Filter amplitude (a.u.)"
+            y = "Kernel amplitude (a.u.)"
             ) +
         # aesthetics
         ggplot2::theme_bw(base_family = "Open Sans", base_size = 12) +
@@ -368,10 +440,10 @@ plot.multilevel_kernel <- function (x, ...) {
                 )
             ) +
         ggplot2::theme(legend.position = "none") +
-        ggplot2::scale_x_log10(
+        {if (log) ggplot2::scale_x_log10(
             breaks = scales::breaks_log(n = 5, base = 10),
             labels = scales::label_log(base = 10)
-            ) +
-        ggplot2::annotation_logticks(sides = "b")
+            )} +
+        {if (log) ggplot2::annotation_logticks(sides = "b")}
 
 }
