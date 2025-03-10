@@ -4,16 +4,39 @@
 \alias{response_consistency}
 \title{Computing different metrics of response's consistency.}
 \usage{
-response_consistency(data, double_pass = TRUE)
+response_consistency(
+  data,
+  participant_id = "participant",
+  block_id = "block",
+  trial_id = "trial",
+  feature_id = "feature",
+  value_id = "value",
+  response_id = "response",
+  method = c("template_distance", "kernel_similarity"),
+  double_pass = TRUE
+)
 }
 \arguments{
-\item{data}{Dataframe, with reverse correlation data. Should contain the
-following columns: participant, block, trial, resp, f, eq.}
+\item{data}{Dataframe, with reverse correlation data (in long format).}
+
+\item{participant_id}{Numeric/Character/Factor, column in data specifying the participant ID.}
+
+\item{block_id}{Numeric, column in data specifying the block ID.}
+
+\item{trial_id}{Numeric, column in data specifying the trial ID.}
+
+\item{feature_id}{Numeric/Factor, column in data specifying the feature.}
+
+\item{value_id}{Numeric, column in data specifying the feature value}
+
+\item{response_id}{Numeric, column in data specifying the response.}
+
+\item{method}{Character, which method to use (distance to templates or similarity to kernel).}
 
 \item{double_pass}{Logical, indicating whether the last block was repeated.}
 }
 \value{
-Numeric, the MSE.
+Dataframe, various metrices of response consistency.
 }
 \description{
 Computing different metrics of response's consistency from both double-pass

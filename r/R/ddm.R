@@ -137,7 +137,7 @@ ddm_fitting <- function (
                         )
                     )
 
-                }
+            }
 
     return (fit)
 

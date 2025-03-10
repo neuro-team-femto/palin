@@ -7,17 +7,21 @@
 sdt_fitting(
   data,
   ntrials = 10000,
+  log_mse = TRUE,
   method = c("DEoptim", "nlminb", "SANN", "Nelder-Mead", "CG", "BFGS", "bobyqa", "grid"),
   cluster = NULL,
   grid_res = 0.01,
   maxit = 100,
-  verbose = FALSE
+  verbose = FALSE,
+  return_grid = FALSE
 )
 }
 \arguments{
 \item{data}{Dataframe, with observed prop_agree and prop_int1.}
 
 \item{ntrials}{Numeric, number of simulated trials in the SDT model.}
+
+\item{log_mse}{Logical, should we return the log-MSE (instead of the MSE).}
 
 \item{method}{Character, the optimisation method, see possible values below (DEoptim seems to work best).
 Beware that method "grid" can take some time, depending on the size of the grid.}
@@ -29,7 +33,9 @@ noise (only used for method "grid").}
 
 \item{maxit}{Numeric, maximum number of iterations.}
 
-\item{verbose}{Boolean, whether to print progress during fitting.}
+\item{verbose}{Logical, whether to print progress during fitting.}
+
+\item{return_grid}{Logical, should we return the full grid when method = "grid".}
 }
 \value{
 The optimised parameter values and further convergence information.
@@ -41,17 +47,17 @@ method and at least 1e4 trials.
 \examples{
 \dontrun{
 # using summary statistics of empirical data
-df <- data.frame(prop_agree = 0.7, prop_int1 = 0.413, ntrials = 1e2)
+sdt_df <- data.frame(prop_agree = 0.7, prop_first = 0.413, ntrials = 1e2)
 
 # fitting the SDT model using bobyqa (fast method)
-sdt_fitting(data = df, ntrials = 1e4, method = "bobyqa")
+sdt_fitting(data = sdt_df, ntrials = 1e4, method = "bobyqa")
 
 fitting the SDT model using DEoptim (slower but more accurate)
-sdt_fit <- sdt_fitting(data = df, ntrials = 1e4, method = "DEoptim")
+sdt_fit <- sdt_fitting(data = sdt_df, ntrials = 1e4, method = "DEoptim")
 summary(sdt_fit)
 
-fitting the SDT model using the grid method (super slower but more accurate)
-sdt_fitting(data = df, ntrials = 1e3, method = "grid", grid_res = 0.05)
+fitting the SDT model using the grid method (super slower but accurate)
+sdt_fitting(data = sdt_df, ntrials = 1e3, method = "grid", grid_res = 0.1)
 }
 
 }

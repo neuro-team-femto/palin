@@ -6,10 +6,13 @@
 
 * Including a `NEWS.md` file to track changes.
 * Including the (more efficient) `DEoptim` method for fitting the DDM and SDT model.
-* Including the `response_consistency()` function to compute response's consistency.
+* Including the `response_consistency()` function to compute response consistency.
 * Reworking the GLMM method for estimating the kernel (and internal noise), now based on `mgcv::bam()`.
 * Reworking the `README.md` file with a full comparison of estimates from the DDM and SDT model.
 
-# palin 0.0.3 (TO-DO)
+# palin 0.0.3
 
-* Increasing the flexibility of input data format by allowing the user to specify contrasts of interest using formulas
+* Increasing the flexibility of input data format by allowing the user to specify the relevant columns.
+* New methods for computing response consistency (distance to templates or similarity to kernel).
+* Improving the SDT fit methods.
+* Improving the GLM method for computing the kernel (now returning the CI).

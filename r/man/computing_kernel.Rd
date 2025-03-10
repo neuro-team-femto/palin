@@ -6,13 +6,30 @@
 \usage{
 computing_kernel(
   data,
+  participant_id = "participant",
+  block_id = "block",
+  trial_id = "trial",
+  feature_id = "feature",
+  value_id = "value",
+  response_id = "response",
   method = c("difference", "glm", "glmm"),
   double_pass = TRUE
 )
 }
 \arguments{
-\item{data}{Dataframe, with reverse correlation data. Should contain the
-following columns: participant, block, trial, resp, f, eq.}
+\item{data}{Dataframe, with reverse correlation data (in long format).}
+
+\item{participant_id}{Numeric/Character/Factor, column in data specifying the participant ID.}
+
+\item{block_id}{Numeric, column in data specifying the block ID.}
+
+\item{trial_id}{Numeric, column in data specifying the trial ID.}
+
+\item{feature_id}{Numeric/Factor, column in data specifying the feature.}
+
+\item{value_id}{Numeric, column in data specifying the feature value.}
+
+\item{response_id}{Numeric, column in data specifying the response.}
 
 \item{method}{Character, the kernel computation method, either "difference", "glm", or "glmm".}
 
