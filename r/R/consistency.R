@@ -25,7 +25,8 @@
 #' head(self_voice)
 #'
 #' # computing metrics of response consistency per participant and per block
-#' response_consistency(self_voice) |> head(10)
+#' response_consistency(self_voice, method = "template_distance") |> head(10)
+#' response_consistency(self_voice, method = "kernel_similarity") |> head(10)
 #' }
 #'
 #' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@gmail.com}.
@@ -42,6 +43,9 @@ response_consistency <- function (
 
     # some tests for variable types
     stopifnot("data must be a dataframe..." = is.data.frame(data) )
+
+    # method should be one of above
+    method <- match.arg(method)
 
     # checking required column names
     required_columns <- c(participant_id, block_id, trial_id, feature_id, value_id, response_id)

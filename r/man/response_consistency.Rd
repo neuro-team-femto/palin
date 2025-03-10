@@ -49,7 +49,8 @@ data(self_voice)
 head(self_voice)
 
 # computing metrics of response consistency per participant and per block
-response_consistency(self_voice) |> head(10)
+response_consistency(self_voice, method = "template_distance") |> head(10)
+response_consistency(self_voice, method = "kernel_similarity") |> head(10)
 }
 
 }
