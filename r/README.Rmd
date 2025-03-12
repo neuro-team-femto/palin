@@ -73,18 +73,18 @@ Computing response bias and internal noise from the percentage of agreement.
 self_voice |>
     filter(participant == unique(participant)[1]) |>
     filter(block %in% c(max(block)-1, max(block) ) ) |>
-    select(-RT, -f, -eq) |>
+    select(-RT, -feature, -value) |>
     distinct() |>
     # reshaping the response variable as indicating int1 or int2
     mutate(
-        resp = if_else(first(resp) == 1, 0, 1),
+        response = if_else(first(response) == 1, 0, 1),
         .by = c(participant, trial)
         ) |>
     # removing duplicated rows
     distinct() |>
     # reshaping the trial variable
     mutate(trial = 1:n(), .by = c(participant, block) ) |>
-    pivot_wider(names_from = block, values_from = resp, names_prefix = "block") |>
+    pivot_wider(names_from = block, values_from = response, names_prefix = "block") |>
     # computing agreement
     dplyr::mutate(agreement = ifelse(pick(3) == pick(4), 1, 0) ) |>
     summarise(prop_agree = mean(agreement), ntrials = n_distinct(trial) ) |>
@@ -94,17 +94,17 @@ self_voice |>
 self_voice |>
     filter(participant == unique(participant)[1]) |>
     filter(block < max(block) ) |>
-    select(-RT, -f, -eq) |>
+    select(-RT, -feature, -value) |>
     distinct() |>
     mutate(
-        stim_order = cumsum(resp != lag(resp, default = first(resp) ) ) + 1,
+        stim_order = cumsum(response != lag(response, default = first(response) ) ) + 1,
         .by = c(participant, block, trial)
         ) |>
-    reframe(prop_stim_order = mean(resp), .by = stim_order) |>
+    reframe(prop_stim_order = mean(response), .by = stim_order) |>
     data.frame()
 
 # estimating internal noise for this  participant
-df <- data.frame(prop_agree = 0.66, prop_int1 = 0.485, ntrials = 100)
+df <- data.frame(prop_agree = 0.66, prop_first = 0.485, ntrials = 100)
 
 # fitting the SDT model to these data (using DEoptim and all available cores)
 fit_results <- sdt_fitting(data = df, maxit = 100)
@@ -125,17 +125,17 @@ df <- self_voice |>
     # removing the last double-pass block
     filter(block < max(block) ) |>
     # keeping only the relevant columns
-    select(participant, trial, resp, RT) |>
+    select(participant, trial, response, RT) |>
     # removing duplicated rows
     distinct() |>
     # reshaping the resp variable as indicating int1 or int2
     mutate(
-        resp = if_else(first(resp) == 1, 0, 1),
+        resp = if_else(first(response) == 1, 0, 1),
         .by = c(participant, trial)
         ) |>
     distinct() |>
     # reshaping the resp variable
-    mutate(resp = factor(ifelse(test = resp == 0, yes = "lower", no = "upper") ) ) |>
+    mutate(resp = factor(ifelse(test = response == 0, yes = "lower", no = "upper") ) ) |>
     # removing extreme RTs
     filter(RT > 0.05 & RT < 2)
 
@@ -182,12 +182,12 @@ consistency <- response_consistency(data = self_voice)
 
 # plotting it
 consistency %>%
-    pivot_longer(cols = avg_consistency:weighted_avg_consistency) %>%
+    pivot_longer(cols = avg_consistency:weighted_consistency) %>%
     ggplot(aes(x = block, y = value, colour = name) ) +
     geom_line(
         aes(group = interaction(participant, name) ),
         linewidth = 0.5,
-        alpha = 0.2,
+        alpha = 0.5,
         show.legend = FALSE
         ) +
     stat_summary(
@@ -196,6 +196,6 @@ consistency %>%
         show.legend = FALSE
         ) +
     facet_wrap(~name, ncol = 1) +
-    theme_minimal(base_size = 12, base_family = "Open Sans") +
+    theme_bw(base_size = 12, base_family = "Open Sans") +
     labs(x = "Block number", y = "Average consistency")
 ```

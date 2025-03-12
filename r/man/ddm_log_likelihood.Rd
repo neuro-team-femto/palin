@@ -30,7 +30,7 @@ df <- self_voice |>
   # removing the last block
   filter(block < max(block) ) |>
   # keeping only the relevant columns
-  select(participant, choice = resp, RT) |>
+  select(participant, choice = response, RT) |>
   mutate(choice = ifelse(test = choice == "stim1", yes = 1, no = 2) )
 
 # splitting data by participant (keeping only the first one)

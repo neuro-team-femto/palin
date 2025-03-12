@@ -36,7 +36,7 @@ response_consistency(
 \item{double_pass}{Logical, indicating whether the last block was repeated.}
 }
 \value{
-Dataframe, various metrices of response consistency.
+Dataframe, various metrics of response consistency.
 }
 \description{
 Computing different metrics of response's consistency from both double-pass

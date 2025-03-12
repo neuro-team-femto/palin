@@ -16,3 +16,9 @@
 * New methods for computing response consistency (distance to templates or similarity to kernel).
 * Improving the SDT fit methods.
 * Improving the GLM method for computing the kernel (now returning the CI).
+
+# palin 0.0.4
+
+* Improving the SDT fit methods (more efficient DEoptim algorithm, smoothing the error surface).
+* Improving the GLMM method for computing the kernel (now using a Bayesian GLMM).
+* Including a semi-analytical solution for computing prop_agree and prop_first in `sdt_data()`.

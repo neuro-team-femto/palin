@@ -4,11 +4,13 @@
 \alias{sdt_data}
 \title{Generating data from the SDT model}
 \usage{
-sdt_data(pars, ntrials = 10000)
+sdt_data(pars, method = c("simulation", "expectation"), ntrials = 10000)
 }
 \arguments{
 \item{pars}{Numeric, should be a list of initial values for the response bias
 and the internal noise.}
+
+\item{method}{Character, the method for computing prop_agree and prop_first ("simulation" or "expectation").}
 
 \item{ntrials}{Numeric, number of trials per block (defaults to 1e4).}
 }
@@ -21,11 +23,8 @@ Goupil et al. (2021), \url{https://doi.org/10.1038/s41467-020-20649-4}.
 }
 \examples{
 \dontrun{
-# example data (70\% agreement and no response bias)
-sdt_df <- data.frame(prop_agree = 0.7, prop_first = 0.5, ntrials = 1e2)
-
-# generating prop_agree and prop_first
-sdt_data(par = c(0, 1), data = sdt_df)
+# generating prop_agree and prop_first from pars
+sdt_data(pars = c(0, 1), ntrials = 1e4)
 }
 
 }

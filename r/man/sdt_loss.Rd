@@ -4,13 +4,21 @@
 \alias{sdt_loss}
 \title{Computing the MSE}
 \usage{
-sdt_loss(pars, data, ntrials = 10000, log_mse = TRUE)
+sdt_loss(
+  pars,
+  data,
+  method = c("simulation", "expectation"),
+  ntrials = 10000,
+  log_mse = TRUE
+)
 }
 \arguments{
 \item{pars}{Numeric, should be a list of initial values for the response bias
 and the internal noise.}
 
 \item{data}{Dataframe, with observed prop_agree and prop_first.}
+
+\item{method}{Character, the method for computing prop_agree and prop_first ("simulation" or "expectation").}
 
 \item{ntrials}{Numeric, number of trials per block (defaults to 1e4).}
 
@@ -21,11 +29,11 @@ Computing the MSE from prop_agree and prop_first.
 }
 \examples{
 \dontrun{
-# example data (70\% agreement and no response bias)
-sdt_df <- data.frame(prop_agree = 0.7, prop_first = 0.5, ntrials = 1e2)
+# generating prop_agree and prop_first from pars
+sdt_df <- sdt_data(pars = c(0, 1), ntrials = 1e4)
 
-# generating prop_agree and prop_first
-sdt_data(par = c(0, 1), data = sdt_df)
+# computing the MSE loss (or log-MSE)
+sdt_loss(par = c(0, 1), data = sdt_df, ntrials = 1e4)
 }
 
 }

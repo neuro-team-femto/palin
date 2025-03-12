@@ -12,7 +12,8 @@ computing_kernel(
   feature_id = "feature",
   value_id = "value",
   response_id = "response",
-  method = c("difference", "glm", "glmm"),
+  method = c("difference", "GLM", "GLMM"),
+  max_feature_levels = 5,
   double_pass = TRUE
 )
 }
@@ -31,7 +32,9 @@ computing_kernel(
 
 \item{response_id}{Numeric, column in data specifying the response.}
 
-\item{method}{Character, the kernel computation method, either "difference", "glm", or "glmm".}
+\item{method}{Character, the kernel computation method, either "difference", "GLM", or "GLMM".}
+
+\item{max_feature_levels}{Numeric, maximum number of feature levels in the GLMM (keep it low to keep GLMM fitting feasible).}
 
 \item{double_pass}{Logical, indicating whether the last block was repeated.}
 }
@@ -51,11 +54,16 @@ data(self_voice)
 head(self_voice)
 
 # computing the kernel per participant
-computing_kernel(data = self_voice, method = "difference")
+computing_kernel(data = self_voice, method = "difference") |> head()
+computing_kernel(data = self_voice, method = "GLM") |> head()
 
 # plotting it
 computing_kernel(data = self_voice, method = "difference") |> plot()
-computing_kernel(data = self_voice, method = "glm") |> plot()
+computing_kernel(data = self_voice, method = "GLM") |> plot()
+
+# computing the kernel using a Bayesian multilevel GLM
+# note that this option is much slower...
+kernel_glmm <- computing_kernel(data = self_voice, method = "GLMM")
 }
 
 }

@@ -13,10 +13,9 @@
 #' @param method Character, which method to use (distance to templates or similarity to kernel).
 #' @param double_pass Logical, indicating whether the last block was repeated.
 #'
-#' @return Dataframe, various metrices of response consistency.
+#' @return Dataframe, various metrics of response consistency.
 #'
 #' @importFrom rlang .data
-#' @importFrom utils tail
 #'
 #' @examples
 #' \dontrun{
@@ -44,7 +43,7 @@ response_consistency <- function (
     # some tests for variable types
     stopifnot("data must be a dataframe..." = is.data.frame(data) )
 
-    # method should be one of above
+    # ensuring that the method is one of the above
     method <- match.arg(method)
 
     # checking required column names
@@ -207,9 +206,13 @@ response_consistency <- function (
             dplyr::group_by(.data[[participant_id]]) |>
             dplyr::filter(.data[[response_id]] == 1) |>
             dplyr::mutate(
-                pfirst = dplyr::if_else(.data$stim == 1 & .data[[response_id]] == 1, 1, 0)
+                double_pass_prop_first = dplyr::if_else(
+                    .data$stim == 1 & .data[[response_id]] == 1, 1, 0
+                    )
                 ) |>
-            dplyr::summarise(pfirst = mean(.data$pfirst) ) |>
+            dplyr::summarise(
+                double_pass_prop_first = mean(.data$double_pass_prop_first)
+                ) |>
             dplyr::ungroup() |>
             data.frame()
 
@@ -224,11 +227,17 @@ response_consistency <- function (
                 .by = c(.data[[participant_id]], .data[[trial_id]])
                 ) |>
             # removing unused columns
-            dplyr::select(.data[[participant_id]], .data[[block_id]], .data[[trial_id]], .data$resp) |>
+            dplyr::select(
+                .data[[participant_id]], .data[[block_id]],
+                .data[[trial_id]], .data$resp
+                ) |>
             # removing duplicated rows
             dplyr::distinct() |>
             # reshaping the trial variable
-            dplyr::mutate(trial = 1:dplyr::n(), .by = c(.data[[participant_id]], .data[[block_id]]) ) |>
+            dplyr::mutate(
+                trial = 1:dplyr::n(),
+                .by = c(.data[[participant_id]], .data[[block_id]])
+                ) |>
             tidyr::pivot_wider(
                 names_from = .data[[block_id]],
                 # values_from = .data[[response_id]],
@@ -243,13 +252,6 @@ response_consistency <- function (
                     1, 0
                     )
                 ) |>
-            # dplyr::mutate(
-            #     agreement = dplyr::if_else(
-            #         dplyr::cur_data()[[dp_blocks[1]]] ==
-            #             dplyr::cur_data()[[dp_blocks[2]]],
-            #         1, 0
-            #         )
-            #     ) |>
             # remove potential NA
             stats::na.omit() |>
             dplyr::summarise(

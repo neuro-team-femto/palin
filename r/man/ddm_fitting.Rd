@@ -41,15 +41,16 @@ head(self_voice)
 # reshaping the data
 df <- self_voice |>
   # removing the last block
-  filter(block < 7) |>
+  filter(block < max(block) ) |>
   # keeping only the relevant columns
-  select(participant, choice = resp, RT) |>
+  select(participant, choice = response, RT) |>
   mutate(choice = ifelse(test = choice == "stim1", yes = 1, no = 2) )
 
 # splitting data by participant (keeping only the first one)
 df_ppt <- df |> filter(participant == unique(participant)[1])
 
 # fitting the full DDM for LN and MM (pars are a, v, t0, w, sv)
-ddm_fitting(rt = df_ppt$RT, resp = df_ppt$choice, method = "nlminb")$par
+fit_results <- ddm_fitting(rt = df_ppt$RT, resp = df_ppt$choice, method = "DEoptim")
+summary(fit_results)
 }
 }
