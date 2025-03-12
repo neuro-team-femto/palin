@@ -16,6 +16,14 @@ import seaborn as sns
 from ..kernels.glm_kernel import GLMKernel
 from .internal_noise_extractor import InternalNoiseExtractor
 
+import rpy2.robjects as robjects
+import rpy2.robjects.pandas2ri
+from rpy2.robjects.packages import importr
+
+rpy2.robjects.pandas2ri.activate()
+stats = importr('stats')  # Load the 'stats' package (contains glm) 
+base = importr('base')  # Load the 'base' package
+
 from abc import ABC,abstractmethod
 
 class GLMMethod(InternalNoiseExtractor):
@@ -70,20 +78,47 @@ class GLMMethod(InternalNoiseExtractor):
     @classmethod
     def extract_norm_ci_value(cls, data_df, trial_id='trial', stim_id= 'stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
          # Use GLMKernel to fit GLM and extract kernel and confidence intervals
-        
+        backend = kwargs.get("backend", "python")
+        link_function = kwargs.get("link", "probit")
         model = GLMKernel.train_GLM_from_data(data_df,
             trial_id,stim_id, feature_id, value_id, response_id, **kwargs)
 
         if model is None:
             return np.nan
             
-        # extract conf intervals
-        ci = model.conf_int()
-        ci.columns = ['lower_bound', 'upper_bound']
-        ci_df = ci.iloc[1:]  # Exclude the intercept
-        ci_df = ci_df.reset_index(drop=True)
+        # # extract conf intervals
+        # ci = model.conf_int()
+        # ci.columns = ['lower_bound', 'upper_bound']
+        # ci_df = ci.iloc[1:]  # Exclude the intercept
+        # ci_df = ci_df.reset_index(drop=True)
+        if backend == "rpy2":
+            # ci = stats.confint(model)
+            # ci_df = pd.DataFrame(np.array(ci), columns=['lower_bound', 'upper_bound'])
+            # ci_df = ci_df.iloc[1:].reset_index(drop=True)  # Exclude the intercept
+            coefs = robjects.r['coef'](model)
+            if any(np.isnan(coefs)):  # Ensure model coefficients are valid
+                print("Warning: R model contains NaN coefficients. Returning NaN.")
+                return np.nan
 
-        kernel_df = GLMKernel.convert_model_to_kernel(model)
+            try:
+                ci = stats.confint(model)
+                ci_array = np.array(ci)
+        
+                if ci_array.shape[0] < 2 or np.isnan(ci_array).any():  # Ensure valid values
+                    print("Warning: Not enough valid confidence interval values in R. Returning NaN.")
+                    return np.nan
+
+                ci_df = pd.DataFrame(ci_array, columns=['lower_bound', 'upper_bound'])
+                ci_df = ci_df.iloc[1:].reset_index(drop=True)  # Exclude the intercept
+            except Exception as e:
+                print(f"Error computing confidence intervals in R: {e}")
+                return np.nan
+        else:
+            ci = model.conf_int()
+            ci.columns = ['lower_bound', 'upper_bound']
+            ci_df = ci.iloc[1:].reset_index(drop=True)  # Exclude the intercept
+
+        kernel_df = GLMKernel.convert_model_to_kernel(model, backend=backend)
 
         # Calculate confidence interval size
         kernel_df['conf_int'] = ci_df['upper_bound'] - ci_df['lower_bound']
@@ -117,11 +152,14 @@ class GLMMethod(InternalNoiseExtractor):
         """
         if 'glm_model_file' not in kwargs:
             raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
-
+        
+        backend = kwargs.get("backend", "python")
+        link_function = kwargs.get("link", "probit")
         # extract CI on weights from a GLM fit 
         norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
     
-        if np.isnan(norm_max_feature_ci):
+        if np.isnan(norm_max_feature_ci)or norm_max_feature_ci < 0:
+            print(f"Warning: Invalid norm_max_feature_ci value ({norm_max_feature_ci}). Returning NaN.")
             return np.nan
 
         # convert to internal noise 
@@ -137,7 +175,8 @@ class GLMMethod(InternalNoiseExtractor):
 
             # note: to get confidence intervals on estimated noise, do: 
             # pred = model.get_prediction(ci_df)
-            # pred.summary_frame(alpha=0.05) 
+            print(f"Backend: {backend}, Norm Max CI: {norm_max_feature_ci}, Predicted Internal Noise: {internal_noise}")
+
         return internal_noise
 
     
