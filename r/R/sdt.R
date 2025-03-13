@@ -1,6 +1,6 @@
 #' Generating data from the SDT model
 #'
-#' Generating data from the SDT model and computing the MSE. Adapted from
+#' Generating data from the SDT model adapted from
 #' Goupil et al. (2021), \url{https://doi.org/10.1038/s41467-020-20649-4}.
 #'
 #' @param pars Numeric, should be a list of initial values for the response bias
@@ -14,7 +14,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' # generating prop_agree and prop_first from pars
+#' # generating prop_agree and prop_first from parameters values
 #' sdt_data(pars = c(0, 1), ntrials = 1e4)
 #' }
 #'
@@ -35,10 +35,10 @@ sdt_data <- function (pars, method = c("simulation", "expectation"), ntrials = 1
     method <- match.arg(method)
 
     # following Goupil et al. (2021)'s notation,
-    # s_i is the difference bw stim2 - stim1
-    # sigma_ir is the difference bw noise of stim2 and noise of stim1
-    # pc_agree is the predicted percentage of agreement
-    # pc_int1 is the predicted probability (percentage) of chosen first stimuli
+    # s_i is the difference between stim2 - stim1
+    # sigma_ir is the difference between noise of stim2 and noise of stim1
+    # prop_agree is the predicted percentage of agreement
+    # prop_first is the predicted probability (percentage) of chosen first stimuli
 
     # response bias
     bias <- pars[[1]]
@@ -60,7 +60,7 @@ sdt_data <- function (pars, method = c("simulation", "expectation"), ntrials = 1
             dplyr::mutate(
                 sigma_ir = stats::rnorm(n = ntrials * 2, mean = 0, sd = noise)
                 ) |>
-            # decision rule (from Goupil et al., 2021)
+            # decision rule
             dplyr::mutate(
                 stim = dplyr::if_else(
                     condition = (.data$s_i + .data$sigma_ir) > bias,
@@ -69,7 +69,8 @@ sdt_data <- function (pars, method = c("simulation", "expectation"), ntrials = 1
                 ) |>
             # reshaping the dataframe
             tidyr::pivot_wider(
-                names_from = .data$rep, values_from = .data$stim,
+                names_from = .data$rep,
+                values_from = .data$stim,
                 id_cols = .data$trial
                 )
 
@@ -89,7 +90,7 @@ sdt_data <- function (pars, method = c("simulation", "expectation"), ntrials = 1
         # involving the CDF of the standard normal distribution (since s_i ~ N(0, 1) )
         if (noise == 0) {
 
-            # handling the hedge case when noise = 0
+            # handling the hedge case of noise = 0
             prop_agree <- 1
 
         } else {
@@ -126,7 +127,7 @@ sdt_data <- function (pars, method = c("simulation", "expectation"), ntrials = 1
 #' @param data Dataframe, with observed prop_agree and prop_first.
 #' @param method Character, the method for computing prop_agree and prop_first ("simulation" or "expectation").
 #' @param ntrials Numeric, number of trials per block (defaults to 1e4).
-#' @param log_mse Logcial, should we return the log-MSE (instead of the MSE).
+#' @param log_mse Logical, should we return the log-MSE (instead of the MSE).
 #'
 #' @examples
 #' \dontrun{

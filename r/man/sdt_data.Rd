@@ -18,12 +18,12 @@ and the internal noise.}
 Numeric, the MSE.
 }
 \description{
-Generating data from the SDT model and computing the MSE. Adapted from
+Generating data from the SDT model adapted from
 Goupil et al. (2021), \url{https://doi.org/10.1038/s41467-020-20649-4}.
 }
 \examples{
 \dontrun{
-# generating prop_agree and prop_first from pars
+# generating prop_agree and prop_first from parameters values
 sdt_data(pars = c(0, 1), ntrials = 1e4)
 }
 

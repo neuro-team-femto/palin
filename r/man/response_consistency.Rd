@@ -12,7 +12,7 @@ response_consistency(
   feature_id = "feature",
   value_id = "value",
   response_id = "response",
-  method = c("template_distance", "kernel_similarity"),
+  method = c("template_distance", "kernel_similarity", "intercept"),
   double_pass = TRUE
 )
 }
@@ -31,7 +31,7 @@ response_consistency(
 
 \item{response_id}{Numeric, column in data specifying the response.}
 
-\item{method}{Character, which method to use (distance to templates or similarity to kernel).}
+\item{method}{Character, which consistency method to use.}
 
 \item{double_pass}{Logical, indicating whether the last block was repeated.}
 }
@@ -51,6 +51,7 @@ head(self_voice)
 # computing metrics of response consistency per participant and per block
 response_consistency(self_voice, method = "template_distance") |> head(10)
 response_consistency(self_voice, method = "kernel_similarity") |> head(10)
+response_consistency(self_voice, method = "intercept") |> head(10)
 }
 
 }

@@ -22,7 +22,7 @@ and the internal noise.}
 
 \item{ntrials}{Numeric, number of trials per block (defaults to 1e4).}
 
-\item{log_mse}{Logcial, should we return the log-MSE (instead of the MSE).}
+\item{log_mse}{Logical, should we return the log-MSE (instead of the MSE).}
 }
 \description{
 Computing the MSE from prop_agree and prop_first.
