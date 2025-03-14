@@ -80,6 +80,8 @@ class GLMMethod(InternalNoiseExtractor):
          # Use GLMKernel to fit GLM and extract kernel and confidence intervals
         backend = kwargs.get("backend", "python")
         link_function = kwargs.get("link", "probit")
+        agg_mode = kwargs.get("agg_mode", "argmax")
+
         model = GLMKernel.train_GLM_from_data(data_df,
             trial_id,stim_id, feature_id, value_id, response_id, **kwargs)
 
@@ -105,13 +107,13 @@ class GLMMethod(InternalNoiseExtractor):
                 ci_array = np.array(ci)
         
                 if ci_array.shape[0] < 2 or np.isnan(ci_array).any():  # Ensure valid values
-                    print("Warning: Not enough valid confidence interval values in R. Returning NaN.")
+                    # print("Warning: Not enough valid confidence interval values in R. Returning NaN.")
                     return np.nan
 
                 ci_df = pd.DataFrame(ci_array, columns=['lower_bound', 'upper_bound'])
                 ci_df = ci_df.iloc[1:].reset_index(drop=True)  # Exclude the intercept
             except Exception as e:
-                print(f"Error computing confidence intervals in R: {e}")
+                # print(f"Error computing confidence intervals in R: {e}")
                 return np.nan
         else:
             ci = model.conf_int()
@@ -126,14 +128,33 @@ class GLMMethod(InternalNoiseExtractor):
         # Normalize confidence intervals
         kernel_df['norm_ci'] = kernel_df['conf_int'] / kernel_df['kernel_value'].abs()
 
+        if agg_mode == "min":
+            agg_norm_ci = kernel_df['norm_ci'].min()
+        elif agg_mode == "mean":
+            agg_norm_ci = kernel_df['norm_ci'].mean()
+        elif agg_mode == "median":
+            agg_norm_ci = kernel_df['norm_ci'].median()
+        elif agg_mode == "max":
+            agg_norm_ci = kernel_df['norm_ci'].max()
+        elif agg_mode == "argmedian" or agg_mode == "argmean":
+            agg_norm_ci = kernel_df['norm_ci'].iloc[cls.argmedian(list(kernel_df['kernel_value'].abs()))]
+        elif agg_mode == "argmin":
+            agg_norm_ci = kernel_df['norm_ci'].iloc[np.argmin(list(kernel_df['kernel_value'].abs()))]
+        elif agg_mode == "argmax":
+            agg_norm_ci = kernel_df['norm_ci'].iloc[np.argmax(list(kernel_df['kernel_value'].abs()))]
+        else:
+            raise ValueError(f"Unknown aggregation mode: {agg_mode}")
+
         # Calculate normalized maximum feature confidence interval
-        max_feature_ci = kernel_df['norm_ci'].iloc[np.argmax(kernel_df['kernel_value'].abs())]
+        # max_feature_ci = kernel_df['norm_ci'].iloc[np.argmax(kernel_df['kernel_value'].abs())]
         
         # scale by nb of trials
-        norm_max_feature_ci = max_feature_ci * np.sqrt(data_df[trial_id].nunique()) 
+        norm_max_feature_ci = agg_norm_ci * np.sqrt(data_df[trial_id].nunique()) 
         
         return norm_max_feature_ci
-        
+    @classmethod
+    def argmedian(cls, x):
+        return np.argpartition(x, len(x) // 2)[len(x) // 2]  
     
     @classmethod
     def extract_single_internal_noise(cls, data_df, trial_id='trial', stim_id ='stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
@@ -159,7 +180,7 @@ class GLMMethod(InternalNoiseExtractor):
         norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
     
         if np.isnan(norm_max_feature_ci)or norm_max_feature_ci < 0:
-            print(f"Warning: Invalid norm_max_feature_ci value ({norm_max_feature_ci}). Returning NaN.")
+            # print(f"Warning: Invalid norm_max_feature_ci value ({norm_max_feature_ci}). Returning NaN.")
             return np.nan
 
         # convert to internal noise 
@@ -175,7 +196,7 @@ class GLMMethod(InternalNoiseExtractor):
 
             # note: to get confidence intervals on estimated noise, do: 
             # pred = model.get_prediction(ci_df)
-            print(f"Backend: {backend}, Norm Max CI: {norm_max_feature_ci}, Predicted Internal Noise: {internal_noise}")
+            # print(f"Backend: {backend}, Norm Max CI: {norm_max_feature_ci}, Predicted Internal Noise: {internal_noise}")
 
         return internal_noise
 
