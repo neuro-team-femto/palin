@@ -9,8 +9,6 @@ from .agreement_method import AgreementMethod
 from itertools import combinations
 from abc import ABC,abstractmethod
 
-
-
 class DistanceMethod(AgreementMethod):
     ''' 
     This class implements an AgreementMethod to estimate internal noise and criteria from reverse correlation data. 
@@ -56,9 +54,9 @@ class DistanceMethod(AgreementMethod):
             raise TypeError('DistanceMethod missing required argument kernel_extractor')
         kernel_extractor = kwargs['kernel_extractor']
 
-        if 'trial_type' not in kwargs:
-            raise TypeError('DistanceMethod missing required argument trial_type')
-        trial_type = kwargs['trial_type']
+        if 'trial_mask' not in kwargs:
+            raise TypeError('DistanceMethod missing required argument trial_mask')
+        trial_mask = kwargs['trial_mask']
 
         if 'weight_trials' not in kwargs: 
             raise TypeError('DistanceMethod missing required argument weight_trials')
@@ -77,21 +75,19 @@ class DistanceMethod(AgreementMethod):
         trials_df['activation']= trials_df[value_id].apply(lambda x: x.dot(list(kernel.kernel_value)))   
 
         # accurate if response consistent with kernel product. hit if correctly responds second, cr if correcty responds first
-        if trial_type == 'all':
+        if trial_mask == 'all':
             trials_df['consistency'] = (trials_df.activation > 0) == (trials_df.response==1)
-        elif trial_type == 'hit':
+        elif trial_mask == 'hit':
             trials_df['consistency'] = (trials_df.activation > 0) & (trials_df.response==1)
             trials_df.loc[trials_df.activation < 0, 'consistency'] = np.nan
-        elif trial_type== 'cr':
+        elif trial_mask== 'cr':
             trials_df['consistency'] = (trials_df.activation < 0) & (trials_df.response==0)
             trials_df.loc[trials_df.activation > 0, 'consistency'] = np.nan
         else:
-            raise ValueError('Unrecognized trial_type: %s'%consistency_type)
+            raise ValueError('Unrecognized trial_mask: %s'%trial_mask)
    
         if weight_trials: 
             # weight each trial status (accurate/hit/cr) by quantity of activation in that trial
-            #def minmax(df_col): 
-            #    return (df_col - df_col.min())/(df_col.max()-df_col.min())
             trials_df['trial_weight'] = cls.minmax(trials_df.activation.abs())
             trials_df.consistency = trials_df.consistency * trials_df.trial_weight
 
@@ -103,9 +99,9 @@ class DistanceMethod(AgreementMethod):
         Estimates prob agreement using the distance method, which checks that chosen stimuli have smaller distance to the chosen average than to the non-chosen average
         '''
         
-        if 'trial_type' not in kwargs:
-            raise TypeError('DistanceMethod missing required argument trial_type')
-        trial_type = kwargs['trial_type']
+        if 'trial_mask' not in kwargs:
+            raise TypeError('DistanceMethod missing required argument trial_mask')
+        trial_mask = kwargs['trial_mask']
 
         if 'weight_trials' not in kwargs: 
             raise TypeError('DistanceMethod missing required argument weight_trials')
@@ -128,17 +124,18 @@ class DistanceMethod(AgreementMethod):
         trials_df.loc[trials_df[response_id]==True, 'consistency'] = trials_df.expected_chosen
         trials_df.loc[trials_df[response_id]==False, 'consistency'] = ~trials_df.expected_chosen
 
-        if trial_type == 'all':
-            pass #trials_df = trials_df
-        elif trial_type == 'hit':
+        if trial_mask == 'all':
+            trials_df = trials_df.groupby([trial_id, response_id, 'distance_positive','distance_negative'], as_index=False).consistency.all()
+        elif trial_mask == 'hit':
             trials_df = trials_df[trials_df[response_id]==True]
-        elif trial_type== 'cr':
+        elif trial_mask== 'cr':
             trials_df = trials_df[trials_df[response_id]==False]
         else:
-            raise ValueError('Unrecognized trial_type: %s'%trial_type)
+            raise ValueError('Unrecognized trial_mask: %s'%trial_mask)
+
+        #return trials_df
 
         if weight_trials: 
-
             trials_df['distance_ratio'] = trials_df.distance_negative/trials_df.distance_positive
             # weight chosen trials by distance_negative / distance_positive
             trials_df.loc[trials_df[response_id]==True, 'trial_weight'] = trials_df.loc[trials_df[response_id]==True, 'distance_ratio']
@@ -147,17 +144,9 @@ class DistanceMethod(AgreementMethod):
             # normalize weights to 0-1
             trials_df.trial_weight = cls.minmax(trials_df.trial_weight)
             # or normalize weights to unit sum
-            trials_df.trial_weight = trials_df.trial_weight / trials_df.trial_weight.sum()
-            
+            #trials_df.trial_weight = trials_df.trial_weight / trials_df.trial_weight.sum()
+            # weight consistency
             trials_df.consistency = trials_df.consistency * trials_df.trial_weight
-
-            #trials_df.trial_weight_positive = trials_df.trial_weight_positive / trials_df.trial_weight_positive.sum()
-            #trials_df.trial_weight_positive = trials_df.trial_weight_positive / trials_df.trial_weight_positive.sum()
-
-            #trials_df['trial_weight_negative'] = trials_df.distance_positive/trials_df.distance_negative
-            #trials_df.trial_weight_negative = trials_df.trial_weight_negative / trials_df.trial_weight_negative.sum()
-            
-            
 
         return trials_df.consistency.mean()
 
