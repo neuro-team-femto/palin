@@ -64,6 +64,10 @@ class InterceptMethod(AgreementMethod):
             raise TypeError('InterceptMethod missing required argument kernel_extractor')
         kernel_extractor = kwargs['kernel_extractor']
 
+        if 'bin_data' not in kwargs:
+            raise TypeError('InterceptMethod missing required argument bin_data')
+        bin_data = kwargs['bin_data']
+
         if 'fit_method' not in kwargs:
             raise TypeError('InterceptMethod missing required argument fit_method')
         fit_method = kwargs['fit_method']
@@ -96,10 +100,8 @@ class InterceptMethod(AgreementMethod):
             # RMS of trial difference (i.e. trial difference of stim difference)
             combinations_df[value_id] = combinations_df[value_id].apply(lambda x: np.sqrt(np.sum(x**2)))
         combinations_df['agree']=(combinations_df[response_id+'_1']==combinations_df[response_id+'_2']).astype(int) 
-        #comb_df = comb_df.drop(columns=['value_1','value_2','response_1','response_2'])
-
-        if fit_method == 'poly': 
-            # bin combinations, and fit polynomial
+        
+        if bin_data:
 
             if 'n_bins' not in kwargs:
                 raise TypeError('InterceptMethod missing required argument n_bins')
@@ -116,6 +118,8 @@ class InterceptMethod(AgreementMethod):
             bins = bins.fillna(0) # and give bin 0 to all that are < min_non_null to exclude double pass trials from the estimate
             combinations_df = combinations_df.groupby(bins).agree.mean().reset_index()
 
+        if fit_method == 'poly': 
+            
             # fit polynomial, and return intercept
             try:
                 poly = np.poly1d(np.polyfit(combinations_df[value_id][1:], combinations_df.agree[1:], 3))
@@ -129,4 +133,10 @@ class InterceptMethod(AgreementMethod):
             # fit binomial data as GLM, and return the inv_logit of the intercept
             model = smf.glm(formula='agree~value', data=combinations_df, family=Binomial()).fit()
             return expit(model.params['Intercept'])
+
+        else:
+            raise ValueError('Unrecognized fit_method: %s'%fit_method)
+
+
+
         
