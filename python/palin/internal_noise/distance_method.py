@@ -41,6 +41,13 @@ class DistanceMethod(AgreementMethod):
         return prob_agree, prob_first
 
     @classmethod
+    def minmax(cls, df_col): 
+        '''
+        Utility method to minmaxscale a pd column
+        '''
+        return (df_col - df_col.min())/(df_col.max()-df_col.min())
+
+    @classmethod
     def compute_accuracy(cls,data_df, trial_id='trial', stim_id= 'stim', feature_id= 'feature', value_id = 'value', response_id='response', **kwargs):
         '''
         Estimates prob agreement using the accuracy method, which computes the extent to which observer responses match those of an ideal observer with the same kernel and no internal noise
@@ -49,13 +56,13 @@ class DistanceMethod(AgreementMethod):
             raise TypeError('DistanceMethod missing required argument kernel_extractor')
         kernel_extractor = kwargs['kernel_extractor']
 
-        if 'consistency_type' not in kwargs:
-            raise TypeError('DistanceMethod missing required argument consistency_type')
-        consistency_type = kwargs['consistency_type']
+        if 'trial_type' not in kwargs:
+            raise TypeError('DistanceMethod missing required argument trial_type')
+        trial_type = kwargs['trial_type']
 
-        if 'weight_by_activation' not in kwargs: 
-            raise TypeError('DistanceMethod missing required argument weight_by_activation')
-        weight_by_activation = kwargs['weight_by_activation']
+        if 'weight_trials' not in kwargs: 
+            raise TypeError('DistanceMethod missing required argument weight_trials')
+        weight_trials = kwargs['weight_trials']
 
         # pivot data to have one entry per trials (instead of n_features entries) 
         trials_df = data_df.groupby([trial_id,stim_id]).agg({value_id:list, response_id:'first'}).reset_index()
@@ -70,23 +77,87 @@ class DistanceMethod(AgreementMethod):
         trials_df['activation']= trials_df[value_id].apply(lambda x: x.dot(list(kernel.kernel_value)))   
 
         # accurate if response consistent with kernel product. hit if correctly responds second, cr if correcty responds first
-        if consistency_type == 'accuracy':
+        if trial_type == 'all':
             trials_df['consistency'] = (trials_df.activation > 0) == (trials_df.response==1)
-        elif consistency_type == 'hit':
+        elif trial_type == 'hit':
             trials_df['consistency'] = (trials_df.activation > 0) & (trials_df.response==1)
             trials_df.loc[trials_df.activation < 0, 'consistency'] = np.nan
-        elif consistency_type== 'cr':
+        elif trial_type== 'cr':
             trials_df['consistency'] = (trials_df.activation < 0) & (trials_df.response==0)
             trials_df.loc[trials_df.activation > 0, 'consistency'] = np.nan
         else:
-            raise ValueError('Unrecognized consistency type: %s'%consistency_type)
+            raise ValueError('Unrecognized trial_type: %s'%consistency_type)
    
-        if weight_by_activation: 
+        if weight_trials: 
             # weight each trial status (accurate/hit/cr) by quantity of activation in that trial
-            def minmax(df_col): 
-                return (df_col - df_col.min())/(df_col.max()-df_col.min())
-            trials_df['activation_weight'] = minmax(trials_df.activation.abs())
-            trials_df.consistency = trials_df.consistency * trials_df.activation_weight
+            #def minmax(df_col): 
+            #    return (df_col - df_col.min())/(df_col.max()-df_col.min())
+            trials_df['trial_weight'] = cls.minmax(trials_df.activation.abs())
+            trials_df.consistency = trials_df.consistency * trials_df.trial_weight
+
+        return trials_df.consistency.mean()
+
+    @classmethod
+    def compute_distance(cls,data_df, trial_id='trial', stim_id= 'stim', feature_id= 'feature', value_id = 'value', response_id='response', **kwargs):
+        '''
+        Estimates prob agreement using the distance method, which checks that chosen stimuli have smaller distance to the chosen average than to the non-chosen average
+        '''
+        
+        if 'trial_type' not in kwargs:
+            raise TypeError('DistanceMethod missing required argument trial_type')
+        trial_type = kwargs['trial_type']
+
+        if 'weight_trials' not in kwargs: 
+            raise TypeError('DistanceMethod missing required argument weight_trials')
+        weight_trials = kwargs['weight_trials']
+
+        # pivot data to have one entry per trials (instead of n_features entries) 
+        trials_df = data_df.groupby([trial_id,stim_id]).agg({value_id:list, response_id:'first'}).reset_index()
+        trials_df[value_id] = trials_df[value_id].apply(lambda x: np.array(x))  
+
+        # compute chosen (positive) and non-chosen (negative) template
+        positive_template = trials_df[trials_df[response_id]==True][value_id].mean()
+        negative_template = trials_df[trials_df[response_id]==False][value_id].mean()
+
+        # compute distance to templates
+        trials_df['distance_positive'] = trials_df[value_id].apply(lambda x: np.sqrt(np.mean((x - positive_template)**2)))
+        trials_df['distance_negative'] = trials_df[value_id].apply(lambda x: np.sqrt(np.mean((x - negative_template)**2)))
+        trials_df['expected_chosen'] = trials_df.distance_positive < trials_df.distance_negative
+       
+        # compute consistency
+        trials_df.loc[trials_df[response_id]==True, 'consistency'] = trials_df.expected_chosen
+        trials_df.loc[trials_df[response_id]==False, 'consistency'] = ~trials_df.expected_chosen
+
+        if trial_type == 'all':
+            pass #trials_df = trials_df
+        elif trial_type == 'hit':
+            trials_df = trials_df[trials_df[response_id]==True]
+        elif trial_type== 'cr':
+            trials_df = trials_df[trials_df[response_id]==False]
+        else:
+            raise ValueError('Unrecognized trial_type: %s'%trial_type)
+
+        if weight_trials: 
+
+            trials_df['distance_ratio'] = trials_df.distance_negative/trials_df.distance_positive
+            # weight chosen trials by distance_negative / distance_positive
+            trials_df.loc[trials_df[response_id]==True, 'trial_weight'] = trials_df.loc[trials_df[response_id]==True, 'distance_ratio']
+            # weight non-chosen trials by distance_positive / distance_negative
+            trials_df.loc[trials_df[response_id]==False, 'trial_weight'] = 1 / trials_df.loc[trials_df[response_id]==False, 'distance_ratio']
+            # normalize weights to 0-1
+            trials_df.trial_weight = cls.minmax(trials_df.trial_weight)
+            # or normalize weights to unit sum
+            trials_df.trial_weight = trials_df.trial_weight / trials_df.trial_weight.sum()
+            
+            trials_df.consistency = trials_df.consistency * trials_df.trial_weight
+
+            #trials_df.trial_weight_positive = trials_df.trial_weight_positive / trials_df.trial_weight_positive.sum()
+            #trials_df.trial_weight_positive = trials_df.trial_weight_positive / trials_df.trial_weight_positive.sum()
+
+            #trials_df['trial_weight_negative'] = trials_df.distance_positive/trials_df.distance_negative
+            #trials_df.trial_weight_negative = trials_df.trial_weight_negative / trials_df.trial_weight_negative.sum()
+            
+            
 
         return trials_df.consistency.mean()
 
