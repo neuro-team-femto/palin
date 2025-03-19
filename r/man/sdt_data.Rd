@@ -4,11 +4,18 @@
 \alias{sdt_data}
 \title{Generating data from the SDT model}
 \usage{
-sdt_data(pars, method = c("simulation", "expectation"), ntrials = 10000)
+sdt_data(
+  pars,
+  return_summary = TRUE,
+  method = c("simulation", "expectation"),
+  ntrials = 10000
+)
 }
 \arguments{
 \item{pars}{Numeric, should be a list of initial values for the response bias
 and the internal noise.}
+
+\item{return_summary}{Logical, should we return only prop_agree and prop_first, or the full data.}
 
 \item{method}{Character, the method for computing prop_agree and prop_first ("simulation" or "expectation").}
 

@@ -13,7 +13,8 @@ response_consistency(
   value_id = "value",
   response_id = "response",
   method = c("template_distance", "kernel_similarity", "intercept"),
-  double_pass = TRUE
+  double_pass = TRUE,
+  link_function = c("logit", "probit")
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ response_consistency(
 \item{method}{Character, which consistency method to use.}
 
 \item{double_pass}{Logical, indicating whether the last block was repeated.}
+
+\item{link_function}{Character, which binomial GLM link function to use in the "intercept" method (see ?binomial).}
 }
 \value{
 Dataframe, various metrics of response consistency.
@@ -52,6 +55,7 @@ head(self_voice)
 response_consistency(self_voice, method = "template_distance") |> head(10)
 response_consistency(self_voice, method = "kernel_similarity") |> head(10)
 response_consistency(self_voice, method = "intercept") |> head(10)
+response_consistency(self_voice, method = "intercept", link_function = "probit") |> head(10)
 }
 
 }

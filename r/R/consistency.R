@@ -12,6 +12,7 @@
 #' @param response_id Numeric, column in data specifying the response.
 #' @param method Character, which consistency method to use.
 #' @param double_pass Logical, indicating whether the last block was repeated.
+#' @param link_function Character, which binomial GLM link function to use in the "intercept" method (see ?binomial).
 #'
 #' @return Dataframe, various metrics of response consistency.
 #'
@@ -27,6 +28,7 @@
 #' response_consistency(self_voice, method = "template_distance") |> head(10)
 #' response_consistency(self_voice, method = "kernel_similarity") |> head(10)
 #' response_consistency(self_voice, method = "intercept") |> head(10)
+#' response_consistency(self_voice, method = "intercept", link_function = "probit") |> head(10)
 #' }
 #'
 #' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@gmail.com}.
@@ -38,7 +40,8 @@ response_consistency <- function (
         participant_id = "participant", block_id = "block", trial_id = "trial",
         feature_id = "feature", value_id = "value", response_id = "response",
         method = c("template_distance", "kernel_similarity", "intercept"),
-        double_pass = TRUE
+        double_pass = TRUE,
+        link_function = c("logit", "probit")
         ) {
 
     # some tests for variable types
@@ -46,6 +49,7 @@ response_consistency <- function (
 
     # ensuring that the method is one of the above
     method <- match.arg(method)
+    link_function <- match.arg(link_function)
 
     # checking required column names
     required_columns <- c(participant_id, block_id, trial_id, feature_id, value_id, response_id)
@@ -63,7 +67,8 @@ response_consistency <- function (
         participant_id = participant_id, block_id = block_id,
         trial_id = trial_id, feature_id = feature_id,
         value_id = value_id, response_id = response_id,
-        method = "difference"
+        method = "difference",
+        double_pass = double_pass
         )
 
     if (method == "template_distance") {
@@ -94,16 +99,33 @@ response_consistency <- function (
                 ) |>
             dplyr::ungroup() |>
             # removing the stimuli that were not chosen
-            dplyr::filter(.data[[response_id]] == 1) |>
+            # dplyr::filter(.data[[response_id]] == 1) |>
             # grouping per participant, block, trial, and response
+            # dplyr::group_by(
+            #     .data[[participant_id]], .data[[block_id]],
+            #     .data[[trial_id]], .data[[response_id]]
+            #     ) |>
+            tidyr::pivot_wider(
+                names_from = .data[[response_id]],
+                values_from = c(.data$distance_from_positive, .data$distance_from_negative)
+                ) |>
             dplyr::group_by(
-                .data[[participant_id]], .data[[block_id]],
-                .data[[trial_id]], .data[[response_id]]
+                .data[[participant_id]], .data[[block_id]], .data[[trial_id]],
                 ) |>
             # computing consistency
+            # dplyr::mutate(
+            #     consistency = as.numeric(
+            #         .data$distance_from_positive < .data$distance_from_negative
+            #         )
+            #     ) |>
+            # computing consistency as the ratio of ratios of distance for each stimulus
             dplyr::mutate(
                 consistency = as.numeric(
-                    .data$distance_from_positive < .data$distance_from_negative
+                    ((.data$distance_from_negative_1 / .data$distance_from_positive_1) / (.data$distance_from_negative_0 / .data$distance_from_positive_0) ) > 1
+                    # or defining consistency with 2 conditions
+                    # .data$distance_from_positive_1 < .data$distance_from_negative_1 & .data$distance_from_positive_1 < .data$distance_from_positive_0
+                    # equivalent to
+                    # (.data$distance_from_negative_1 / .data$distance_from_positive_1) > 1 & (.data$distance_from_positive_0 / .data$distance_from_positive_1) > 1
                     )
                 ) |>
             dplyr::ungroup() |>
@@ -114,11 +136,11 @@ response_consistency <- function (
             # computing average and weighted consistency
             dplyr::summarise(
                 avg_consistency = mean(.data$consistency),
-                weighted_consistency = stats::weighted.mean(
-                    x = .data$consistency,
-                    w = (.data$distance_from_negative / .data$distance_from_positive) /
-                        sum(.data$distance_from_negative / .data$distance_from_positive)
-                    )
+                # weighted_consistency = stats::weighted.mean(
+                #     x = .data$consistency,
+                #     w = (.data$distance_from_negative / .data$distance_from_positive) /
+                #         sum(.data$distance_from_negative / .data$distance_from_positive)
+                #     )
                 ) |>
             dplyr::ungroup() |>
             data.frame()
@@ -150,7 +172,11 @@ response_consistency <- function (
                 kernel_similarity = sum(.data[[value_id]] * .data$kernel),
                 ) |>
             dplyr::ungroup() |>
-            tidyr::pivot_wider(names_from = .data[[response_id]], values_from = .data$kernel_similarity) |>
+            # reshaping the response column in 0/1 (if needed)
+            dplyr::mutate(response = as.numeric(as.factor(.data[[response_id]]) )-1) |>
+            dplyr::select(-.data[[response_id]]) |>
+            # tidyr::pivot_wider(names_from = .data[[response_id]], values_from = .data$kernel_similarity) |>
+            tidyr::pivot_wider(names_from = .data$response, values_from = .data$kernel_similarity) |>
             # renaming the columns
             dplyr::rename(negative = .data$`0`, positive = .data$`1`) |>
             # grouping per participant, block, trial, and response
@@ -172,12 +198,12 @@ response_consistency <- function (
             dplyr::group_by(.data[[participant_id]], .data[[block_id]]) |>
             # computing average and weighted consistency
             dplyr::summarise(
-                avg_consistency = mean(.data$consistency),
-                weighted_consistency = stats::weighted.mean(
-                    x = .data$consistency,
-                    w = (.data$positive_negative_diff - min(.data$positive_negative_diff) ) /
-                        (max(.data$positive_negative_diff) - min(.data$positive_negative_diff) )
-                    )
+                avg_consistency = mean(.data$consistency)
+                # weighted_consistency = stats::weighted.mean(
+                #     x = .data$consistency
+                #     w = (.data$positive_negative_diff - min(.data$positive_negative_diff) ) /
+                #         (max(.data$positive_negative_diff) - min(.data$positive_negative_diff) )
+                #     )
                 ) |>
             dplyr::ungroup() |>
             data.frame()
@@ -202,14 +228,19 @@ response_consistency <- function (
             dplyr::filter(if (double_pass) .data[[block_id]] < max(.data[[block_id]]) else TRUE) |>
             # adding a variable to indicate stimulus position
             dplyr::mutate(
-                stim = cumsum(c(1, diff(.data$response) != 0) ),
+                # stim = cumsum(c(1, diff(.data$response) != 0) ),
+                stim = cumsum(c(1, diff(.data[[response_id]]) != 0) ),
                 .by = c(.data[[participant_id]], .data[[block_id]], .data[[trial_id]])
                 ) |>
             # computing the feature difference for this trial
             dplyr::group_by(.data[[participant_id]], .data[[trial_id]], .data[[feature_id]]) |>
-            dplyr::summarise(
-                value_vector = .data[[value_id]][.data$stim==2]-.data[[value_id]][.data$stim==1],
-                .groups = "drop"
+            # dplyr::summarise(
+            #     value_vector = .data[[value_id]][.data$stim==2]-.data[[value_id]][.data$stim==1],
+            #     .groups = "drop"
+            #     ) |>
+            dplyr::reframe(
+                value_vector = .data[[value_id]][.data$stim==2] -
+                    .data[[value_id]][.data$stim==1]
                 ) |>
             # retrieving the kernels
             dplyr::left_join(
@@ -224,7 +255,7 @@ response_consistency <- function (
                 .by = c(.data[[participant_id]], .data[[trial_id]])
                 ) |>
             # removing some columns
-            dplyr::select(-.data$feature, -.data$value_vector, -.data$negative, -.data$positive) |>
+            dplyr::select(-.data[[feature_id]], -.data$value_vector, -.data$negative, -.data$positive) |>
             # retrieving the response
             dplyr::left_join(response_lookup, by = c(participant_id, trial_id) ) |>
             # removing duplicated rows
@@ -240,7 +271,8 @@ response_consistency <- function (
             dplyr::filter(.data$trial_1 < .data$trial_2)
 
         # computing difference between trial pairs
-        message("Computing trial similarity for all pairs of trials, this may take some time...")
+        # maybe check https://multidplyr.tidyverse.org/articles/multidplyr.html
+        message("Computing trial similarity for all pairs of trials, this may take some time...\n")
         comb_df <- trial_pairs |>
             dplyr::left_join(
                 value_lookup,
@@ -268,44 +300,56 @@ response_consistency <- function (
         #     facet_wrap(~participant)
 
         # fitting a polynomial regression and returning the intercept
+        # link_function <- "probit"
         # fit <- stats::glm(
         #     agree ~ rms_distance,
         #     data = comb_df,
-        #     family = stats::binomial(),
+        #     family = stats::binomial(link = link_function),
         #     )
 
-        # plotting the model's predictions
+        # GLM predictions at rms_distance = 0
         # pd <- data.frame(rms_distance = c(0, sort(comb_df$rms_distance) ) )
-        # preds <- predict(fit, newdata = pd, type = "response", se.fit = TRUE)
-        # pd$fit = preds$fit
-        # pd$se = preds$se.fit
-        #
-        # comb_df |>
-        #     ggplot(aes(x = rms_distance, y = agree) ) +
-        #     geom_ribbon(
-        #         data = pd,
-        #         aes(y = fit, ymin = fit - se, ymax = fit + se),
-        #         alpha = 0.2
-        #         ) +
-        #     geom_line(data = pd, aes(y = fit) )
+        # pd <- data.frame(rms_distance = 0)
+        # preds <- predict(fit, newdata = pd, type = "response", se.fit = FALSE)
+        # preds
+
+        # for logit link function
+        # plogis(fit$coefficients[1])
+
+        # for probit link function
+        # pnorm(fit$coefficients[1])
 
         # extracting the estimated intercept (in probability space)
         # that is, prob(agree) when trial distance is minimal
-        # prop_agree <- as.numeric(plogis(coef(fit)[1]) )
-        # as.numeric(plogis(coef(fit)[1]) )
-        # as.numeric(plogis(pd$fit[1]))
-
         # estimating prop_agree per participant
-        consistency <- comb_df |>
-            dplyr::group_by(.data[[participant_id]]) |>
-            dplyr::summarise(
-                prop_agree_intercept = as.numeric(stats::plogis(stats::glm(
-                    agree ~ rms_distance,
-                    family = stats::binomial(),
-                    )$coefficients[1]) )
-                ) |>
-            dplyr::ungroup() |>
-            data.frame()
+        message("Now fitting a GLM to predict prop_agree...\n")
+        if (link_function == "logit") {
+
+            consistency <- comb_df |>
+                dplyr::group_by(.data[[participant_id]]) |>
+                dplyr::summarise(
+                    prop_agree_intercept = as.numeric(stats::plogis(stats::glm(
+                        agree ~ rms_distance,
+                        family = stats::binomial(link = link_function),
+                        )$coefficients[1]) )
+                    ) |>
+                dplyr::ungroup() |>
+                data.frame()
+
+        } else if (link_function == "probit") {
+
+            consistency <- comb_df |>
+                dplyr::group_by(.data[[participant_id]]) |>
+                dplyr::summarise(
+                    prop_agree_intercept = as.numeric(stats::pnorm(stats::glm(
+                        agree ~ rms_distance,
+                        family = stats::binomial(link = link_function),
+                        )$coefficients[1]) )
+                    ) |>
+                dplyr::ungroup() |>
+                data.frame()
+
+        }
 
     }
 
@@ -322,7 +366,8 @@ response_consistency <- function (
             dplyr::filter(if (double_pass) .data[[block_id]] %in% dp_blocks else TRUE) |>
             # adding a variable to indicate stimulus position
             dplyr::mutate(
-                stim = cumsum(c(1, diff(.data$response) != 0) ),
+                # stim = cumsum(c(1, diff(.data$response) != 0) ),
+                stim = cumsum(c(1, diff(.data[[response_id]]) != 0) ),
                 .by = c(.data[[participant_id]], .data[[block_id]], .data[[trial_id]])
                 ) |>
             dplyr::select(

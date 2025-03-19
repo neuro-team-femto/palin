@@ -23,3 +23,8 @@
 * Improving the GLMM method for computing the kernel (now using a Bayesian GLMM).
 * Including a semi-analytical solution for computing prop_agree and prop_first in `sdt_data()`.
 * Implementing the `intercept` method (using a binomial GLM) in `response_consistency()`.
+
+# palin 0.0.5
+
+* Fixing a few errors in `computing_kernel()` and `response_consistency()`.
+* Improving the `template_distance` method in `response_consistency()` (now considering the ratio of distances ratio).

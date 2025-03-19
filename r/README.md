@@ -9,7 +9,7 @@
 
 The goal of `palin` is to provide utilities for working with reverse
 correlation data. It can be used, for instance, to estimate internal
-noise in such tasks.
+noise (IN) from empirical percentages of agreement (PA) in such tasks.
 
 ## Installation
 
@@ -81,55 +81,27 @@ Computing response bias and internal noise from the percentage of
 agreement.
 
 ``` r
-# computing the percentage of agreement in the two double-pass blocks
+# computing the percentage of agreement and the percentage of choosing the first
+# stimulus in the double-pass trials
 self_voice |>
-    filter(participant == unique(participant)[1]) |>
-    filter(block %in% c(max(block)-1, max(block) ) ) |>
-    select(-RT, -feature, -value) |>
-    distinct() |>
-    # reshaping the response variable as indicating int1 or int2
-    mutate(
-        response = if_else(first(response) == 1, 0, 1),
-        .by = c(participant, trial)
-        ) |>
-    # removing duplicated rows
-    distinct() |>
-    # reshaping the trial variable
-    mutate(trial = 1:n(), .by = c(participant, block) ) |>
-    pivot_wider(names_from = block, values_from = response, names_prefix = "block") |>
-    # computing agreement
-    dplyr::mutate(agreement = ifelse(pick(3) == pick(4), 1, 0) ) |>
-    summarise(prop_agree = mean(agreement), ntrials = n_distinct(trial) ) |>
-    data.frame()
-#>   prop_agree ntrials
-#> 1       0.66     100
-
-# computing the percentage of response per stimulus order/position
-self_voice |>
-    filter(participant == unique(participant)[1]) |>
-    filter(block < max(block) ) |>
-    select(-RT, -feature, -value) |>
-    distinct() |>
-    mutate(
-        stim_order = cumsum(response != lag(response, default = first(response) ) ) + 1,
-        .by = c(participant, block, trial)
-        ) |>
-    reframe(prop_stim_order = mean(response), .by = stim_order) |>
-    data.frame()
-#>   stim_order prop_stim_order
-#> 1          1           0.485
-#> 2          2           0.515
+    filter(participant == unique(self_voice$participant)[1]) |>
+    response_consistency() |>
+    select(participant, double_pass_prop_agree, double_pass_prop_first) |>
+    distinct()
+#>   participant double_pass_prop_agree double_pass_prop_first
+#> 1        01JM                   0.66                   0.34
 
 # estimating internal noise for this  participant
-df <- data.frame(prop_agree = 0.66, prop_first = 0.485, ntrials = 100)
+df <- data.frame(prop_agree = 0.66, prop_first = 0.34, ntrials = 100)
 
 # fitting the SDT model to these data (using DEoptim and all available cores)
+# the value represents the value of the cost function (log-MSE)
 fit_results <- sdt_fitting(data = df, maxit = 100)
 summary(fit_results)
 #> 
 #> ***** summary of DEoptim object ***** 
-#> best member   :  0.05773 1.03767 
-#> best value    :  -17.03439 
+#> best member   :  0.66659 1.22712 
+#> best value    :  -17.24203 
 #> after         :  100 generations 
 #> fn evaluated  :  2020 times 
 #> *************************************
@@ -167,9 +139,9 @@ df <- self_voice |>
 # plotting the RT distribution
 # hist(df$RT, breaks = "FD")
 
-# fitting the full DDM for LN and MM (pars are a, v, t0, w, sv)
-# pars are the threshold separation, drift rate, non-decision time, relative
-# starting point, and inter-trial variability of drift rate
+# fitting the full DDM (pars are a, v, t0, w, sv)
+# parameters are the threshold separation, drift rate, non-decision time,
+# relative starting point, and inter-trial variability of drift rate
 # verbose = 20 means that we want to print progress every 20 iterations
 ddm_fit <- ddm_fitting(
     rt = df$RT,
@@ -234,7 +206,12 @@ fddm_fit$loglik
 
 ``` r
 # computing average consistency per participant and block
-consistency <- response_consistency(data = self_voice)
+consistency <- response_consistency(
+    data = self_voice,
+    # method can be one of c("template_distance", "kernel_similarity", "intercept")
+    method = "template_distance",
+    double_pass = TRUE
+    )
 
 # plotting it
 consistency %>%

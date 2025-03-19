@@ -5,6 +5,7 @@
 #'
 #' @param pars Numeric, should be a list of initial values for the response bias
 #' and the internal noise.
+#' @param return_summary Logical, should we return only prop_agree and prop_first, or the full data.
 #' @param method Character, the method for computing prop_agree and prop_first ("simulation" or "expectation").
 #' @param ntrials Numeric, number of trials per block (defaults to 1e4).
 #'
@@ -26,7 +27,7 @@
 #'
 #' @export
 
-sdt_data <- function (pars, method = c("simulation", "expectation"), ntrials = 1e4) {
+sdt_data <- function (pars, return_summary = TRUE, method = c("simulation", "expectation"), ntrials = 1e4) {
 
     # some tests for variable types
     stopifnot("ntrials must be a numeric..." = is.numeric(ntrials) )
@@ -73,6 +74,13 @@ sdt_data <- function (pars, method = c("simulation", "expectation"), ntrials = 1
                 values_from = .data$stim,
                 id_cols = .data$trial
                 )
+
+        if (return_summary == FALSE) {
+
+            # returning the full data
+            return (simulated_df)
+
+        }
 
         # predicted probability (percentage) of choosing the first stimulus
         prop_first <- sum(simulated_df == "stim1") / (ntrials * 2)

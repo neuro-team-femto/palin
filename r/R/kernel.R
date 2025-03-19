@@ -19,7 +19,6 @@
 #' @return The original data augmented with the kernel.
 #'
 #' @importFrom rlang .data
-#' @importFrom stats coef as.formula
 #'
 #' @examples
 #' \dontrun{
@@ -72,19 +71,28 @@ computing_kernel <- function (
         )
 
     # if double-pass was used, remove the last (repeated) block
-    if (double_pass) data <- data |> dplyr::filter(.data[[block_id]] != max(.data[[block_id]]) )
+    if (double_pass) {
+
+        nblocks <- dplyr::n_distinct(data[[block_id]])
+        if (nblocks > 1) data <- data |> dplyr::filter(.data[[block_id]] != max(.data[[block_id]]) )
+
+    }
 
     if (method == "difference") {
 
         # first-order kernel computed for each subject as
         # mean(filter gains of voices classified as mine) - mean(filter gains of voices classified as not-mine)
         kernels <- data |>
-            # grouping by participant, frequency band, and response
+            # grouping by participant, feature, and response
             dplyr::group_by(.data[[participant_id]], .data[[feature_id]], .data[[response_id]]) |>
             # computing the average gain
             dplyr::summarise(mean_value = mean(.data[[value_id]]) ) |>
             dplyr::ungroup() |>
-            tidyr::pivot_wider(names_from = .data[[response_id]], values_from = .data$mean_value) |>
+            # reshaping the response column in 0/1 (if needed)
+            dplyr::mutate(response = as.numeric(as.factor(.data[[response_id]]) )-1) |>
+            dplyr::select(-.data[[response_id]]) |>
+            # tidyr::pivot_wider(names_from = .data[[response_id]], values_from = .data$mean_value) |>
+            tidyr::pivot_wider(names_from = .data$response, values_from = .data$mean_value) |>
             # renaming the columns
             dplyr::rename(negative = .data$`0`, positive = .data$`1`) |>
             # computing the kernel
@@ -364,7 +372,7 @@ computing_kernel <- function (
             dplyr::mutate(participant = "group", .before = .data$feature)
 
         # retrieving the individual-level (random/varying) effects
-        participant_slopes <- coef(glmm)$participant
+        participant_slopes <- stats::coef(glmm)$participant
         dimnames(participant_slopes)[[3]] <- sub("\\..*", "", dimnames(participant_slopes)[[3]])
         participant_slopes <- data.frame(participant_slopes) |>
             tibble::rownames_to_column(var = "participant")
@@ -414,7 +422,7 @@ plot.kernel <- function (
     # plotting the filters
     x |>
         # avoiding log(0)
-        dplyr::filter(.data$feature > 0) |>
+        # dplyr::filter(.data$feature > 0) |>
         ggplot2::ggplot(
             ggplot2::aes(
                 x = .data$feature,
@@ -450,11 +458,11 @@ plot.kernel <- function (
                 )
             ) +
         {if (normalisation_method == "kernel_gain") ggplot2::labs(
-            x = "Frequency (Hz)",
+            x = "Feature",
             y = "Kernel amplitude (a.u.)"
             )} +
         {if (normalisation_method != "kernel_gain") ggplot2::labs(
-            x = "Frequency (Hz)",
+            x = "Feature",
             y = "Normalised kernel amplitude (a.u.)"
             )} +
         {if (log) ggplot2::scale_x_log10(
@@ -471,7 +479,7 @@ plot.glm_kernel <- function (x, log = TRUE, ...) {
 
     x |>
         # avoiding log(0)
-        dplyr::filter(.data$feature > 0) |>
+        # dplyr::filter(.data$feature > 0) |>
         ggplot2::ggplot(
             ggplot2::aes(
                 x = as.numeric(.data$feature),
@@ -486,11 +494,10 @@ plot.glm_kernel <- function (x, log = TRUE, ...) {
             ) +
         ggplot2::geom_line(linewidth = 1) +
         ggplot2::labs(
-            x = "Frequency (Hz)",
+            x = "Feature",
             y = "Kernel amplitude (a.u.)"
             ) +
         # aesthetics
-        # ggplot2::theme_bw(base_family = "Open Sans", base_size = 12) +
         ggplot2::theme_bw() +
         ggplot2::scale_colour_manual(
             values = MetBrewer::met.brewer(
@@ -513,7 +520,7 @@ plot.glmm_kernel <- function (x, log = TRUE, ...) {
 
     x |>
         # avoiding log(0)
-        dplyr::filter(.data$feature > 0) |>
+        # dplyr::filter(.data$feature > 0) |>
         ggplot2::ggplot(
             ggplot2::aes(
                 x = .data$feature,
@@ -541,11 +548,10 @@ plot.glmm_kernel <- function (x, log = TRUE, ...) {
             linewidth = 1
             ) +
         ggplot2::labs(
-            x = "Frequency (Hz)",
+            x = "Feature",
             y = "Kernel amplitude (a.u.)"
             ) +
         # aesthetics
-        # ggplot2::theme_bw(base_family = "Open Sans", base_size = 12) +
         ggplot2::theme_bw() +
         ggplot2::scale_colour_manual(
             values = MetBrewer::met.brewer(
