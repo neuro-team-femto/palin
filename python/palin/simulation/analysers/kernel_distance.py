@@ -4,9 +4,10 @@ from palin.metrics import metrics as me
 
 class KernelDistance(Analyser): 
 
-    def __init__(self, kernel_extractor, distance='CORR'):
+    def __init__(self, kernel_extractor, distance='CORR', **kwargs):
         self.kernel_extractor = kernel_extractor
         self.distance = distance
+        self.kwargs = kwargs
 
     #@classmethod
     def get_metric_names(self):
@@ -25,7 +26,7 @@ class KernelDistance(Analyser):
         responses_df = self.to_df(experiment, participant_responses)
 
         kernel_df = self.kernel_extractor.extract_single_kernel(data_df = responses_df,
-        feature_id = 'feature', value_id = 'value', response_id = 'response')
+        feature_id = 'feature', value_id = 'value', response_id = 'response', **self.kwargs)
 
         if normalize: 
             kernel_df = self.kernel_extractor.normalize_kernel(kernel_df)
