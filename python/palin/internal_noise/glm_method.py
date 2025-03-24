@@ -12,17 +12,13 @@ import warnings
 import ast
 import statsmodels.formula.api as smf
 import statsmodels.api as sm
+import warnings
+
+import importlib.util
+
 import seaborn as sns
 from ..kernels.glm_kernel import GLMKernel
 from .internal_noise_extractor import InternalNoiseExtractor
-
-import rpy2.robjects as robjects
-import rpy2.robjects.pandas2ri
-from rpy2.robjects.packages import importr
-
-rpy2.robjects.pandas2ri.activate()
-stats = importr('stats')  # Load the 'stats' package (contains glm) 
-base = importr('base')  # Load the 'base' package
 
 from abc import ABC,abstractmethod
 
@@ -40,7 +36,6 @@ class GLMMethod(InternalNoiseExtractor):
         Fits an OLS regression model to map `norm_max_feature_ci` to `internal_noise_std`.
 
         """
-
         from ..simulation.analysers.ci_value import CIValue
         from ..simulation.simulation import Simulation as Sim
         from ..simulation.experiments.simple_experiment import SimpleExperiment
@@ -56,8 +51,7 @@ class GLMMethod(InternalNoiseExtractor):
                      'n_features': [5],
                      'external_noise_std': [100]}
 
-        analyser_params = {'agg_mode': [agg_mode]}        
-     
+        analyser_params = {'agg_mode': [agg_mode]} 
                    
         sim = Sim(SimpleExperiment, experiment_params, 
                  LinearObserver, observer_params,
@@ -76,13 +70,40 @@ class GLMMethod(InternalNoiseExtractor):
         glm_model_file = f'./glm_model_{agg_mode}.pkl'
         model.save(glm_model_file)
         return model
+
+    @classmethod
+    def import_rpy2(cls): 
+        '''
+        Utility function to import rpy2 conditionally, so it's not required when the module is loaded
+        '''
+        rpy2_spec = importlib.util.find_spec("rpy2")
+        if rpy2_spec is not None: 
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    import rpy2.robjects as robjects
+                    import rpy2.robjects.pandas2ri
+                    from rpy2.robjects.packages import importr
+                    rpy2.robjects.pandas2ri.activate()
+                    stats = importr('stats')  # Load the 'stats' package (contains glm) 
+                    base = importr('base')  # Load the 'base' package
+            except ImportError:
+                raise ImportError('Cannot import rpy2')
+        else: 
+            raise ImportError('Cannot import rpy2')
+        return robjects, stats
         
     @classmethod
     def extract_norm_ci_value(cls, data_df, trial_id='trial', stim_id= 'stim', feature_id='feature', value_id='value', response_id='response', agg_mode='argmax', **kwargs):
          # Use GLMKernel to fit GLM and extract kernel and confidence intervals
-        backend = kwargs.get("backend", "python")
-        link_function = kwargs.get("link", "probit")
-        # agg_mode = kwargs.get("agg_mode", "argmax")
+        
+        if 'backend' not in kwargs:
+            raise TypeError('GLMKernel missing required argument backend')
+        backend = kwargs['backend']
+
+        if 'link' not in kwargs:
+            raise TypeError('GLMKernel missing required argument link')
+        link_function = kwargs['link']
 
         model = GLMKernel.train_GLM_from_data(data_df,
             trial_id,stim_id, feature_id, value_id, response_id, **kwargs)
@@ -90,20 +111,13 @@ class GLMMethod(InternalNoiseExtractor):
         if model is None:
             return np.nan
             
-        # # extract conf intervals
-        # ci = model.conf_int()
-        # ci.columns = ['lower_bound', 'upper_bound']
-        # ci_df = ci.iloc[1:]  # Exclude the intercept
-        # ci_df = ci_df.reset_index(drop=True)
         if backend == "rpy2":
-            # ci = stats.confint(model)
-            # ci_df = pd.DataFrame(np.array(ci), columns=['lower_bound', 'upper_bound'])
-            # ci_df = ci_df.iloc[1:].reset_index(drop=True)  # Exclude the intercept
+            
+            robjects, stats = cls.import_rpy2()
             coefs = robjects.r['coef'](model)
             if any(np.isnan(coefs)):  # Ensure model coefficients are valid
                 print("Warning: R model contains NaN coefficients. Returning NaN.")
                 return np.nan
-
             try:
                 ci = stats.confint(model)
                 ci_array = np.array(ci)
@@ -117,12 +131,16 @@ class GLMMethod(InternalNoiseExtractor):
             except Exception as e:
                 # print(f"Error computing confidence intervals in R: {e}")
                 return np.nan
-        else:
+        elif backend == "python": 
+
             ci = model.conf_int()
             ci.columns = ['lower_bound', 'upper_bound']
             ci_df = ci.iloc[1:].reset_index(drop=True)  # Exclude the intercept
 
-        kernel_df = GLMKernel.convert_model_to_kernel(model, backend=backend)
+        else: 
+            raise ValueError('Unrecognized backend: %s'%backend)
+
+        kernel_df = GLMKernel.convert_model_to_kernel(model, feature_id = feature_id, **kwargs)
 
         # Calculate confidence interval size
         kernel_df['conf_int'] = ci_df['upper_bound'] - ci_df['lower_bound']
@@ -173,10 +191,9 @@ class GLMMethod(InternalNoiseExtractor):
         Returns:
         - float: Estimated internal noise.
         """
-        if 'glm_model_file' not in kwargs:
-            raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
+        #if 'glm_model_file' not in kwargs:
+        #    raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
         
-    
         # extract CI on weights from a GLM fit 
         norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, stim_id, feature_id, value_id, response_id, agg_mode,**kwargs)
     
