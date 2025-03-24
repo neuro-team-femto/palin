@@ -89,9 +89,12 @@ class DistanceMethod(AgreementMethod):
         if weight_trials: 
             # weight each trial status (accurate/hit/cr) by quantity of activation in that trial
             trials_df['trial_weight'] = cls.minmax(trials_df.activation.abs())
+            trials_df = trials_df.dropna(subset='consistency')
             trials_df.consistency = trials_df.consistency * trials_df.trial_weight
+            return trials_df.consistency.sum() / trials_df.trial_weight.sum()
 
-        return trials_df.consistency.mean()
+        else: 
+            return trials_df.consistency.mean()
 
     @classmethod
     def compute_distance(cls,data_df, trial_id='trial', stim_id= 'stim', feature_id= 'feature', value_id = 'value', response_id='response', **kwargs):
