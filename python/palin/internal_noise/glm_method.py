@@ -36,7 +36,7 @@ class GLMMethod(InternalNoiseExtractor):
         Fits an OLS regression model to map `norm_max_feature_ci` to `internal_noise_std`.
 
         """
-        from ..simulation.analysers.ci_value import CIValue
+        from ..simulation.analysers.ci_values import CIValues
         from ..simulation.simulation import Simulation as Sim
         from ..simulation.experiments.simple_experiment import SimpleExperiment
         from ..simulation.observers.linear_observer import LinearObserver
@@ -46,16 +46,16 @@ class GLMMethod(InternalNoiseExtractor):
                            'internal_noise_std':np.arange(0,5.1,0.1), 
                                              'criteria':[0]}
 
-        experiment_params = {'n_trials':np.arange(100,1000,100), 
+        experiment_params = {'n_trials':np.arange(100,2000,100), 
                      'trial_type': [Int2Trial],
                      'n_features': [5],
                      'external_noise_std': [100]}
 
-        analyser_params = {'agg_mode': [agg_mode]} 
+        analyser_params = {'agg_mode': [agg_mode], 'backend':['python'], 'link':['logit'], 'jitter':[0.01]} 
                    
         sim = Sim(SimpleExperiment, experiment_params, 
                  LinearObserver, observer_params,
-                 CIValue, analyser_params)
+                 CIValues, analyser_params)
         sim_df = sim.run_all(n_runs=10)
 
         sim_df = sim_df.groupby(['internal_noise_std', 'n_trials']).confidence_interval.mean().reset_index()
@@ -171,7 +171,8 @@ class GLMMethod(InternalNoiseExtractor):
         # scale by nb of trials
         norm_max_feature_ci = agg_norm_ci * np.sqrt(data_df[trial_id].nunique()) 
         
-        return norm_max_feature_ci
+        return norm_max_feature_ci, agg_norm_ci
+
     @classmethod
     def argmedian(cls, x):
         return np.argpartition(x, len(x) // 2)[len(x) // 2]  
@@ -195,7 +196,7 @@ class GLMMethod(InternalNoiseExtractor):
         #    raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
         
         # extract CI on weights from a GLM fit 
-        norm_max_feature_ci=cls.extract_norm_ci_value(data_df, trial_id, stim_id, feature_id, value_id, response_id, agg_mode,**kwargs)
+        norm_max_feature_ci, agg_norm_ci =cls.extract_norm_ci_value(data_df, trial_id, stim_id, feature_id, value_id, response_id, agg_mode,**kwargs)
     
         if np.isnan(norm_max_feature_ci)or norm_max_feature_ci < 0:
             # print(f"Warning: Invalid norm_max_feature_ci value ({norm_max_feature_ci}). Returning NaN.")
