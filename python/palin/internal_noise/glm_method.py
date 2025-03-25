@@ -213,6 +213,15 @@ class GLMMethod(InternalNoiseExtractor):
             raise TypeError('GLMMethod missing required argument agg_mode')
         agg_mode = kwargs['agg_mode']
 
+        if 'backend' not in kwargs:
+            raise TypeError('GLMMethod missing required argument backend')
+        backend = kwargs['backend']
+
+        if 'link' not in kwargs:
+            raise TypeError('GLMMethod missing required argument link')
+        link = kwargs['link']
+
+
         ## FIXME: add backend and link dans model name
         model_file = f'./glm_model_{backend}_{link}_{agg_mode}.pkl'
         if not os.path.isfile(model_file): 
