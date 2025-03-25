@@ -31,7 +31,7 @@ class GLMMethod(InternalNoiseExtractor):
         return "GLM Method"
 
     @classmethod
-    def build_model(cls, glm_model_file='./glm_model.pkl',agg_mode = 'argmax', plot=False):
+    def build_model(cls, agg_mode = 'argmax', backend = 'python', link = 'logit', plot=False):
         """
         Fits an OLS regression model to map `norm_max_feature_ci` to `internal_noise_std`.
 
@@ -51,7 +51,8 @@ class GLMMethod(InternalNoiseExtractor):
                      'n_features': [5],
                      'external_noise_std': [100]}
 
-        analyser_params = {'agg_mode': [agg_mode], 'backend':['python'], 'link':['logit'], 'jitter':[0.01]} 
+        # FIXME: use parameters for backend and link
+        analyser_params = {'agg_mode': [agg_mode], 'backend':[backend], 'link':[link], 'jitter':[0.01]} 
                    
         sim = Sim(SimpleExperiment, experiment_params, 
                  LinearObserver, observer_params,
@@ -67,7 +68,7 @@ class GLMMethod(InternalNoiseExtractor):
         if plot: 
             sns.lmplot(x='confidence_interval', y='internal_noise_std', hue='n_trials', data=sim_df)
 
-        glm_model_file = f'./glm_model_{agg_mode}.pkl'
+        glm_model_file = f'./glm_model_{backend}_{link}_{agg_mode}.pkl'
         model.save(glm_model_file)
         return model
 
@@ -211,8 +212,9 @@ class GLMMethod(InternalNoiseExtractor):
         if 'agg_mode' not in kwargs:
             raise TypeError('GLMMethod missing required argument agg_mode')
         agg_mode = kwargs['agg_mode']
-        
-        model_file = f'./glm_model_{agg_mode}.pkl'
+
+        ## FIXME: add backend and link dans model name
+        model_file = f'./glm_model_{backend}_{link}_{agg_mode}.pkl'
         if not os.path.isfile(model_file): 
             raise ValueError(f"Invalid model file {model_file}. Run `build_model(agg_mode='{agg_mode}')` first.") 
 
