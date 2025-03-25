@@ -94,43 +94,47 @@ class GLMMethod(InternalNoiseExtractor):
         return robjects, stats
         
     @classmethod
-    def extract_norm_ci_value(cls, data_df, trial_id='trial', stim_id= 'stim', feature_id='feature', value_id='value', response_id='response', agg_mode='argmax', **kwargs):
+    def extract_norm_ci_value(cls, data_df, trial_id='trial', stim_id= 'stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
          # Use GLMKernel to fit GLM and extract kernel and confidence intervals
         
         if 'backend' not in kwargs:
-            raise TypeError('GLMKernel missing required argument backend')
+            raise TypeError('GLMMethod missing required argument backend')
         backend = kwargs['backend']
 
         if 'link' not in kwargs:
-            raise TypeError('GLMKernel missing required argument link')
+            raise TypeError('GLMMethod missing required argument link')
         link_function = kwargs['link']
+
+        if 'agg_mode' not in kwargs:
+            raise TypeError('GLMMethod missing required argument agg_mode')
+        agg_mode = kwargs['agg_mode']
 
         model = GLMKernel.train_GLM_from_data(data_df,
             trial_id,stim_id, feature_id, value_id, response_id, **kwargs)
 
         if model is None:
-            return np.nan
-            
+            return np.nan,np.nan
+        
         if backend == "rpy2":
-            
+
             robjects, stats = cls.import_rpy2()
             coefs = robjects.r['coef'](model)
             if any(np.isnan(coefs)):  # Ensure model coefficients are valid
                 print("Warning: R model contains NaN coefficients. Returning NaN.")
-                return np.nan
+                return np.nan,np.nan
             try:
                 ci = stats.confint(model)
                 ci_array = np.array(ci)
         
                 if ci_array.shape[0] < 2 or np.isnan(ci_array).any():  # Ensure valid values
                     # print("Warning: Not enough valid confidence interval values in R. Returning NaN.")
-                    return np.nan
+                    return np.nan,np.nan
 
                 ci_df = pd.DataFrame(ci_array, columns=['lower_bound', 'upper_bound'])
                 ci_df = ci_df.iloc[1:].reset_index(drop=True)  # Exclude the intercept
             except Exception as e:
-                # print(f"Error computing confidence intervals in R: {e}")
-                return np.nan
+                print(f"Error computing confidence intervals in R: {e}")
+                return np.nan,np.nan
         elif backend == "python": 
 
             ci = model.conf_int()
@@ -178,7 +182,7 @@ class GLMMethod(InternalNoiseExtractor):
         return np.argpartition(x, len(x) // 2)[len(x) // 2]  
     
     @classmethod
-    def extract_single_internal_noise(cls, data_df, trial_id='trial', stim_id ='stim', feature_id='feature', value_id='value', response_id='response', agg_mode='argmax',**kwargs):
+    def extract_single_internal_noise(cls, data_df, trial_id='trial', stim_id ='stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
         """
         Extracts internal noise for a single observer/session using the GLM fit.
 
@@ -196,13 +200,18 @@ class GLMMethod(InternalNoiseExtractor):
         #    raise ValueError('no model file provided for GLM Method. Use GLMMethod.build_model() before calling') 
         
         # extract CI on weights from a GLM fit 
-        norm_max_feature_ci, agg_norm_ci =cls.extract_norm_ci_value(data_df, trial_id, stim_id, feature_id, value_id, response_id, agg_mode,**kwargs)
-    
-        if np.isnan(norm_max_feature_ci)or norm_max_feature_ci < 0:
+        norm_max_feature_ci, agg_norm_ci =cls.extract_norm_ci_value(data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs)
+        #norm_max_feature_ci =cls.extract_norm_ci_value(data_df, trial_id, stim_id, feature_id, value_id, response_id, agg_mode,**kwargs)
+
+        if np.isnan(norm_max_feature_ci) or norm_max_feature_ci < 0:
             # print(f"Warning: Invalid norm_max_feature_ci value ({norm_max_feature_ci}). Returning NaN.")
             return np.nan
 
         # convert to internal noise 
+        if 'agg_mode' not in kwargs:
+            raise TypeError('GLMMethod missing required argument agg_mode')
+        agg_mode = kwargs['agg_mode']
+        
         model_file = f'./glm_model_{agg_mode}.pkl'
         if not os.path.isfile(model_file): 
             raise ValueError(f"Invalid model file {model_file}. Run `build_model(agg_mode='{agg_mode}')` first.") 

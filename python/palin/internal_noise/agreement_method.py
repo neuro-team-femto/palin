@@ -229,7 +229,7 @@ class AgreementMethod(InternalNoiseExtractor):
         Build a lookup model that associates a range of internal noise and criteria values with their corresponding (simulated) prob_agree and prob_first.
         This uses a simulated LinearObserver, and returns the model as a dataframe 
         '''
-        print('Building double-pass model')
+        print('Building agreement model')
 
         # deferred imports of the simulation modules, to avoid circular imports
         from ..simulation.observers.linear_observer import LinearObserver
@@ -258,8 +258,6 @@ class AgreementMethod(InternalNoiseExtractor):
                      'external_noise_std': [1]}
         analyser_params = kwargs
         #{'internal_noise_extractor':[internal_noise_extractor]}
-
-        ## TODO CHECK HOW to use AgreementStatistics instead of DoublePassStatistics here
 
         sim = Sim(DoublePassExperiment, experiment_params,
               LinearObserver, observer_params, 
