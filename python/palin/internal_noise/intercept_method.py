@@ -129,10 +129,14 @@ class InterceptMethod(AgreementMethod):
                 return np.nan
 
         elif fit_method == 'glm': 
-
-            # fit binomial data as GLM, and return the inv_logit of the intercept
-            model = smf.glm(formula='agree~value', data=combinations_df, family=Binomial()).fit()
-            return expit(model.params['Intercept'])
+            from statsmodels.tools.sm_exceptions import PerfectSeparationError
+            try:
+                # fit binomial data as GLM, and return the inv_logit of the intercept
+                model = smf.glm(formula='agree~value', data=combinations_df, family=Binomial()).fit()
+                return expit(model.params['Intercept'])
+            except PerfectSeparationError: 
+                print('error fitting glm')
+                return np.nan
 
         else:
             raise ValueError('Unrecognized fit_method: %s'%fit_method)
