@@ -241,7 +241,8 @@ class AgreementMethod(InternalNoiseExtractor):
         from .double_pass import DoublePass
         
         if 'internal_noise_extractor' not in kwargs:
-            kwargs['internal_noise_extractor'] = [DoublePass]
+            kwargs['internal_noise_extractor'] = [cls]
+        print('kwargs',kwargs)
 
         # make kwarg values iterables if needed
         for kw in kwargs:
