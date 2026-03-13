@@ -89,10 +89,10 @@ computing_kernel <- function (
             dplyr::summarise(mean_value = mean(.data[[value_id]]) ) |>
             dplyr::ungroup() |>
             # reshaping the response column in 0/1 (if needed)
-            dplyr::mutate(response = as.numeric(as.factor(.data[[response_id]]) )-1) |>
+            dplyr::mutate(response_internal = as.numeric(as.factor(.data[[response_id]]) )-1) |>
             dplyr::select(-.data[[response_id]]) |>
             # tidyr::pivot_wider(names_from = .data[[response_id]], values_from = .data$mean_value) |>
-            tidyr::pivot_wider(names_from = .data$response, values_from = .data$mean_value) |>
+            tidyr::pivot_wider(names_from = .data$response_internal, values_from = .data$mean_value) |>
             # renaming the columns
             dplyr::rename(negative = .data$`0`, positive = .data$`1`) |>
             # computing the kernel

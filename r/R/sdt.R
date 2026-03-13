@@ -16,7 +16,10 @@
 #' @examples
 #' \dontrun{
 #' # generating prop_agree and prop_first from parameters values
-#' sdt_data(pars = c(0, 1), ntrials = 1e4)
+#' sdt_data(pars = c(0, 1), ntrials = 1e4, method = "simulation")
+#'
+#' # generating prop_agree and prop_first from parameters values
+#' sdt_data(pars = c(0, 1), ntrials = 1e4, method = "expectation")
 #' }
 #'
 #' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@gmail.com}.
@@ -26,7 +29,6 @@
 #' common prosodic signature. *Nature Communications 12*, 861. \url{https://doi.org/10.1038/s41467-020-20649-4}.
 #'
 #' @export
-
 sdt_data <- function (pars, return_summary = TRUE, method = c("simulation", "expectation"), ntrials = 1e4) {
 
     # some tests for variable types
@@ -149,7 +151,6 @@ sdt_data <- function (pars, return_summary = TRUE, method = c("simulation", "exp
 #' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@gmail.com}.
 #'
 #' @export
-
 sdt_loss <- function (pars, data, method = c("simulation", "expectation"), ntrials = 1e4, log_mse = TRUE) {
 
     # some tests for variable types
@@ -203,6 +204,8 @@ sdt_loss <- function (pars, data, method = c("simulation", "expectation"), ntria
 #' @param verbose Logical, whether to print progress during fitting.
 #' @param return_grid Logical, should we return the full grid when method = "grid".
 #' @param smooth_grid Logical, should we smooth the error surface (grid) with a GAM.
+#' @param plot_surface Logical, should we plot the GAM-smoothed error surface.
+#' @param fine_res Numeric, finer grid resolution for plotting the GAM-smoothed error surface.
 #' @param smooth_k Numeric, k value in mgcv::gam() for smoothing the error surface.
 #'
 #' @return The optimised parameter values and further convergence information.
@@ -217,18 +220,20 @@ sdt_loss <- function (pars, data, method = c("simulation", "expectation"), ntria
 #' # fitting the SDT model using bobyqa (fast method)
 #' sdt_fitting(data = sdt_df, ntrials = 1e4, fit_method = "bobyqa")
 #'
-#' fitting the SDT model using DEoptim (slower but more accurate)
+#' # fitting the SDT model using DEoptim (slower but mumch more accurate)
 #' sdt_fit <- sdt_fitting(data = sdt_df, ntrials = 1e4, fit_method = "DEoptim")
 #' summary(sdt_fit)
 #'
-#' fitting the SDT model using the grid method (super slower but accurate)
-#' sdt_fitting(data = sdt_df, ntrials = 1e3, fit_method = "grid", grid_res = 0.1)
+#' # fitting the SDT model using the grid method (super slower but accurate)
+#' sdt_fitting(data = sdt_df, ntrials = 1e3, fit_method = "grid", grid_res = 0.1, smooth_grid = FALSE)
+#'
+#' # fitting the SDT model using the grid method (super slower but accurate) + smoothing
+#' sdt_fitting(data = sdt_df, ntrials = 1e3, fit_method = "grid", grid_res = 0.1, smooth_grid = TRUE)
 #' }
 #'
 #' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@gmail.com}.
 #'
 #' @export
-
 sdt_fitting <- function (
         data,
         method = c("simulation", "expectation"),
@@ -241,7 +246,9 @@ sdt_fitting <- function (
         verbose = FALSE,
         return_grid = FALSE,
         smooth_grid = TRUE,
-        smooth_k = 10
+        plot_surface = TRUE,
+        fine_res = 200,
+        smooth_k = 20
         ) {
 
     # some tests for variable types
@@ -304,7 +311,7 @@ sdt_fitting <- function (
                 # using all available cores
                 parallelType = "parallel",
                 # defining the package to be imported on each parallel core
-                packages = c("DEoptim", "dplyr", "tidyr"),
+                packages = c("DEoptim", "dplyr", "tidyr", "palin"),
                 # defining the cluster
                 cluster = cluster
                 )
@@ -394,8 +401,9 @@ sdt_fitting <- function (
         # or looking for the minimum on a smoothed grid/surface
         if (smooth_grid == TRUE) {
 
+            message ("Fitting a GAM to smooth the error function...")
+
             # smoothing the error surface with a GAM
-            message("Fitting a GAM to smooth the error function...")
             smoothing_model <- mgcv::gam(
                 formula = z ~ te(x, y, k = smooth_k),
                 data = param_grid
@@ -404,8 +412,124 @@ sdt_fitting <- function (
             # making predictions about z
             param_grid$z_smoothed <- stats::fitted(smoothing_model)
 
-            # finding the minimum (or minima) bias and noise values
-            minima <- which(param_grid$z_smoothed == min(param_grid$z_smoothed) )
+            # finds the minimum (or minima) bias and noise values
+            # minima <- which(param_grid$z_smoothed == min(param_grid$z_smoothed) )
+
+            # finds the minimum of the fitted surface via optimisation
+            gam_objective <- function (par, model) {
+
+                newdata <- data.frame(
+                    x = par[1],
+                    y = par[2]
+                    )
+                pred <- stats::predict(model, newdata = newdata)
+                as.numeric(pred)
+
+            }
+
+            smoothed_grid_min_idx <- which(
+                param_grid$z_smoothed ==
+                    min(param_grid$z_smoothed, na.rm = TRUE)
+                )
+
+            if (length(smoothed_grid_min_idx) == 1) {
+
+                start_x <- param_grid$x[smoothed_grid_min_idx]
+                start_y <- param_grid$y[smoothed_grid_min_idx]
+
+            } else {
+
+                start_x <- stats::median(param_grid$x[smoothed_grid_min_idx])
+                start_y <- stats::median(param_grid$y[smoothed_grid_min_idx])
+
+            }
+
+            opt_res <- stats::optim(
+                par = c(start_x, start_y),
+                fn = gam_objective,
+                model = smoothing_model,
+                method = "L-BFGS-B",
+                lower = c(min(param_grid$x), min(param_grid$y) ),
+                upper = c(max(param_grid$x), max(param_grid$y) )
+                )
+
+            best_bias <- opt_res$par[1]
+            best_noise <- opt_res$par[2]
+            best_mse <- opt_res$value
+
+            gam_minimum <- data.frame(
+                best_bias = best_bias,
+                best_noise = best_noise,
+                best_mse = best_mse
+                )
+
+            if (isTRUE(plot_surface) ) {
+
+                vis_grid <- tidyr::crossing(
+                    x = seq(
+                        min(param_grid$x),
+                        max(param_grid$x),
+                        length.out = fine_res
+                        ),
+                    y = seq(
+                        min(param_grid$y),
+                        max(param_grid$y),
+                        length.out = fine_res
+                        )
+                    )
+
+                vis_grid$z_pred <- as.numeric(
+                    stats::predict(
+                        smoothing_model,
+                        newdata = vis_grid
+                        )
+                    )
+
+                p_surface <- ggplot2::ggplot() +
+                    ggplot2::geom_raster(
+                        data = vis_grid,
+                        ggplot2::aes(x = .data$x, y = .data$y, fill = .data$z_pred),
+                        interpolate = TRUE,
+                        show.legend = FALSE
+                        ) +
+                    ggplot2::geom_contour(
+                        data = vis_grid,
+                        ggplot2::aes(x = .data$x, y = .data$y, z = .data$z_pred),
+                        colour = "white",
+                        linewidth = 0.25
+                        ) +
+                    ggplot2::geom_point(
+                        data = gam_minimum,
+                        ggplot2::aes(x = .data$best_bias, y = .data$best_noise),
+                        shape = 4,
+                        size = 4,
+                        stroke = 1.4,
+                        colour = "red"
+                        ) +
+                    ggplot2::labs(
+                        title = "GAM-smoothed error surface",
+                        subtitle = paste0(
+                            "Estimated minimum at bias = ",
+                            round(best_bias, 3),
+                            ", noise = ",
+                            round(best_noise, 3),
+                            ", MSE = ",
+                            round(best_mse, 5)
+                            ),
+                        x = "Response bias",
+                        y = "Internal noise",
+                        fill = "GAM-predicted loss"
+                        ) +
+                    ggplot2::scale_fill_viridis_c(option = "magma") +
+                    ggplot2::theme_bw(base_size = 12, base_family = "Open Sans") +
+                    ggplot2::scale_x_continuous(expand = c(0, 0) ) +
+                    ggplot2::scale_y_continuous(expand = c(0, 0) )
+
+                print(p_surface)
+
+            }
+
+            return (gam_minimum)
 
         }
 
@@ -419,7 +543,7 @@ sdt_fitting <- function (
             } else {
 
                 # otherwise, finds the average (median) bias and noise values across the minima
-                message("Several minima found, returning the median parameter values...")
+                message ("Several minima found, returning the median parameter values...")
                 avg_bias <- stats::median(param_grid$x[minima])
                 avg_noise <- stats::median(param_grid$y[minima])
                 fit <- data.frame(response_bias = avg_bias, internal_noise = avg_noise)

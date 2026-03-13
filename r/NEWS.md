@@ -28,3 +28,7 @@
 
 * Fixing a few errors in `computing_kernel()` and `response_consistency()`.
 * Improving the `template_distance` method in `response_consistency()` (now considering the ratio of distances ratio).
+
+# palin 0.0.6
+
+* Fixing the GAM smoothing in `sdt_fitting()` and now plotting the fitted surface.

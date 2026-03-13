@@ -31,7 +31,10 @@ Goupil et al. (2021), \url{https://doi.org/10.1038/s41467-020-20649-4}.
 \examples{
 \dontrun{
 # generating prop_agree and prop_first from parameters values
-sdt_data(pars = c(0, 1), ntrials = 1e4)
+sdt_data(pars = c(0, 1), ntrials = 1e4, method = "simulation")
+
+# generating prop_agree and prop_first from parameters values
+sdt_data(pars = c(0, 1), ntrials = 1e4, method = "expectation")
 }
 
 }

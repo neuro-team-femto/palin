@@ -30,7 +30,7 @@ response_consistency(
 
 \item{value_id}{Numeric, column in data specifying the feature value}
 
-\item{response_id}{Numeric, column in data specifying the response.}
+\item{response_id}{Numeric, column in data specifying the response (should be in the 0/1 format).}
 
 \item{method}{Character, which consistency method to use.}
 

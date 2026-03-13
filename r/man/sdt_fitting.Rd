@@ -17,7 +17,9 @@ sdt_fitting(
   verbose = FALSE,
   return_grid = FALSE,
   smooth_grid = TRUE,
-  smooth_k = 10
+  plot_surface = TRUE,
+  fine_res = 200,
+  smooth_k = 20
 )
 }
 \arguments{
@@ -45,6 +47,10 @@ noise (only used for method "grid").}
 
 \item{smooth_grid}{Logical, should we smooth the error surface (grid) with a GAM.}
 
+\item{plot_surface}{Logical, should we plot the GAM-smoothed error surface.}
+
+\item{fine_res}{Numeric, finer grid resolution for plotting the GAM-smoothed error surface.}
+
 \item{smooth_k}{Numeric, k value in mgcv::gam() for smoothing the error surface.}
 }
 \value{
@@ -62,12 +68,15 @@ sdt_df <- sdt_data(pars = c(1, 2), ntrials = 1e4)
 # fitting the SDT model using bobyqa (fast method)
 sdt_fitting(data = sdt_df, ntrials = 1e4, fit_method = "bobyqa")
 
-fitting the SDT model using DEoptim (slower but more accurate)
+# fitting the SDT model using DEoptim (slower but mumch more accurate)
 sdt_fit <- sdt_fitting(data = sdt_df, ntrials = 1e4, fit_method = "DEoptim")
 summary(sdt_fit)
 
-fitting the SDT model using the grid method (super slower but accurate)
-sdt_fitting(data = sdt_df, ntrials = 1e3, fit_method = "grid", grid_res = 0.1)
+# fitting the SDT model using the grid method (super slower but accurate)
+sdt_fitting(data = sdt_df, ntrials = 1e3, fit_method = "grid", grid_res = 0.1, smooth_grid = FALSE)
+
+# fitting the SDT model using the grid method (super slower but accurate) + smoothing
+sdt_fitting(data = sdt_df, ntrials = 1e3, fit_method = "grid", grid_res = 0.1, smooth_grid = TRUE)
 }
 
 }

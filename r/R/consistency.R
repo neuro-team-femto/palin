@@ -9,7 +9,7 @@
 #' @param trial_id Numeric, column in data specifying the trial ID.
 #' @param feature_id Numeric/Factor, column in data specifying the feature.
 #' @param value_id Numeric, column in data specifying the feature value
-#' @param response_id Numeric, column in data specifying the response.
+#' @param response_id Numeric, column in data specifying the response (should be in the 0/1 format).
 #' @param method Character, which consistency method to use.
 #' @param double_pass Logical, indicating whether the last block was repeated.
 #' @param link_function Character, which binomial GLM link function to use in the "intercept" method (see ?binomial).
@@ -173,10 +173,10 @@ response_consistency <- function (
                 ) |>
             dplyr::ungroup() |>
             # reshaping the response column in 0/1 (if needed)
-            dplyr::mutate(response = as.numeric(as.factor(.data[[response_id]]) )-1) |>
+            dplyr::mutate(response_internal = as.numeric(as.factor(.data[[response_id]]) )-1) |>
             dplyr::select(-.data[[response_id]]) |>
             # tidyr::pivot_wider(names_from = .data[[response_id]], values_from = .data$kernel_similarity) |>
-            tidyr::pivot_wider(names_from = .data$response, values_from = .data$kernel_similarity) |>
+            tidyr::pivot_wider(names_from = .data$response_internal, values_from = .data$kernel_similarity) |>
             # renaming the columns
             dplyr::rename(negative = .data$`0`, positive = .data$`1`) |>
             # grouping per participant, block, trial, and response
@@ -278,12 +278,14 @@ response_consistency <- function (
                 value_lookup,
                 by = c("participant", "trial_1" = trial_id)
                 ) |>
-            dplyr::rename(value_1 = .data$value_vector_kernel, response_1 = .data$response) |>
+            # dplyr::rename(value_1 = .data$value_vector_kernel, response_1 = .data$response) |>
+            dplyr::rename(value_1 = .data$value_vector_kernel, response_1 = .data[[response_id]]) |>
             dplyr::left_join(
                 value_lookup,
                 by = c("participant", "trial_2" = trial_id)
                 ) |>
-            dplyr::rename(value_2 = .data$value_vector_kernel, response_2 = .data$response) |>
+            # dplyr::rename(value_2 = .data$value_vector_kernel, response_2 = .data$response) |>
+            dplyr::rename(value_2 = .data$value_vector_kernel, response_2 = .data[[response_id]]) |>
             dplyr::rowwise() |>
             dplyr::mutate(
                 value_diff = .data$value_1 - .data$value_2,
