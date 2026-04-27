@@ -63,7 +63,7 @@ class GridSearchModel(InverseModel):
         sim_df = sim.run_all(n_runs=n_runs)
         
         # average measures over all runs
-        sim_df = sim_df.groupby(['internal_noise_std','criteria'])[AgreementStatistics.get_metric_names()].mean()
+        sim_df = sim_df.groupby(['internal_noise_std','criteria'])[AgreementStatistics.get_metric_names()].mean().reset_index()
         
         sim_df.to_csv(model_file)
 
