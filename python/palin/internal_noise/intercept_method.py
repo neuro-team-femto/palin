@@ -32,7 +32,7 @@ class InterceptMethod(AgreementMethod):
         return 'Intercept method'
 
     @classmethod
-    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs):
+    def compute_probabilities(cls,data_df, trial_id='trial', stim_id='stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
         '''
         Compute probabilities over non-double pass trials
         '''
@@ -51,6 +51,7 @@ class InterceptMethod(AgreementMethod):
         # compute probability of choosing first response option
         prob_first = cls.compute_prob_first(single_pass_df, trial_id=trial_id, response_id=response_id, stim_id=stim_id, **kwargs)
         return prob_agree, prob_first
+
 
     @classmethod
     def compute_prob_agreement(cls,data_df, trial_id='trial', stim_id= 'stim', feature_id= 'feature', value_id = 'value', response_id='response', **kwargs):

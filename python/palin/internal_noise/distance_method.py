@@ -21,7 +21,7 @@ class DistanceMethod(AgreementMethod):
         return 'Distance method'
 
     @classmethod
-    def compute_probabilities(cls,data_df, trial_id, stim_id, feature_id, value_id, response_id, **kwargs):
+    def compute_probabilities(cls,data_df, trial_id='trial', stim_id='stim', feature_id='feature', value_id='value', response_id='response', **kwargs):
         '''
         Compute probabilities over non-double pass trials
         '''
