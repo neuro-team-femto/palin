@@ -39,7 +39,7 @@
 #' kernel_glmm <- computing_kernel(data = self_voice, method = "GLMM")
 #' }
 #'
-#' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@gmail.com}.
+#' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@cnrs.fr}.
 #'
 #' @export
 

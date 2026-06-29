@@ -31,7 +31,7 @@
 #' response_consistency(self_voice, method = "intercept", link_function = "probit") |> head(10)
 #' }
 #'
-#' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@gmail.com}.
+#' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@cnrs.fr}.
 #'
 #' @export
 

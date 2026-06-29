@@ -7,8 +7,8 @@
 sdt_loss(
   pars,
   data,
-  method = c("simulation", "expectation"),
-  ntrials = 10000,
+  method = c("expectation", "simulation"),
+  ntrials = 1000,
   log_mse = TRUE
 )
 }
@@ -38,5 +38,5 @@ sdt_loss(par = c(0, 1), data = sdt_df, ntrials = 1e4)
 
 }
 \author{
-Ladislas Nalborczyk \email{ladislas.nalborczyk@gmail.com}.
+Ladislas Nalborczyk \email{ladislas.nalborczyk@cnrs.fr}.
 }

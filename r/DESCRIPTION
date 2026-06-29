@@ -1,13 +1,13 @@
 Package: palin
 Title: Utility functions for analysing reverse correlation data
-Version: 0.0.6
-Date: 2026-03-13
+Version: 0.0.7
+Date: 2026-06-29
 Authors@R:
     c(
     person(
     given = "Ladislas", family = "Nalborczyk",
     role = c("aut", "cre"),
-    email = "ladislas.nalborczyk@gmail.com", 
+    email = "ladislas.nalborczyk@cnrs.fr", 
     comment = c(ORCID = "0000-0002-7419-9855")
     ),
     person(

@@ -60,5 +60,5 @@ response_consistency(self_voice, method = "intercept", link_function = "probit")
 
 }
 \author{
-Ladislas Nalborczyk \email{ladislas.nalborczyk@gmail.com}.
+Ladislas Nalborczyk \email{ladislas.nalborczyk@cnrs.fr}.
 }

@@ -6,20 +6,27 @@
 \usage{
 sdt_fitting(
   data,
-  method = c("simulation", "expectation"),
+  method = c("expectation", "simulation"),
   ntrials = 10000,
   log_mse = TRUE,
+  loss = c("multinomial", "mse"),
   fit_method = c("DEoptim", "nlminb", "SANN", "Nelder-Mead", "CG", "BFGS", "bobyqa",
     "grid"),
   cluster = NULL,
-  grid_res = 0.01,
+  grid_res = 0.05,
   maxit = 100,
+  internal_noise_upper_bound = 10,
+  confint = TRUE,
+  conf_level = 0.95,
+  confint_grid_length = 501,
+  return_profiles = FALSE,
   verbose = FALSE,
   return_grid = FALSE,
   smooth_grid = TRUE,
   plot_surface = TRUE,
   fine_res = 200,
-  smooth_k = 20
+  smooth_k = 20,
+  response_levels = NULL
 )
 }
 \arguments{
@@ -31,6 +38,11 @@ sdt_fitting(
 
 \item{log_mse}{Logical, should we return the log-MSE (instead of the MSE).}
 
+\item{loss}{Character. Loss function to minimise. Either \code{"mse"} for the
+original mean squared error on summary proportions, or \code{"multinomial"} for
+the multinomial negative log-likelihood on full double-pass response
+patterns.}
+
 \item{fit_method}{Character, the optimisation method, see possible values below (DEoptim seems to work best).
 Beware that method "grid" can take some time, depending on the size of the grid.}
 
@@ -40,6 +52,21 @@ Beware that method "grid" can take some time, depending on the size of the grid.
 noise (only used for method "grid").}
 
 \item{maxit}{Numeric, maximum number of iterations.}
+
+\item{internal_noise_upper_bound}{Numeric, upper bound for internal noise estimation.}
+
+\item{confint}{Logical, whether to compute profile-likelihood confidence
+intervals for response bias and internal noise. Only available when
+\code{loss = "multinomial"}.}
+
+\item{conf_level}{Numeric, confidence level for profile-likelihood confidence
+intervals.}
+
+\item{confint_grid_length}{Numeric, number of grid points used for each
+one-dimensional profile likelihood.}
+
+\item{return_profiles}{Logical, whether to return the full profile-likelihood
+objects in addition to the confidence interval table.}
 
 \item{verbose}{Logical, whether to print progress during fitting.}
 
@@ -52,9 +79,16 @@ noise (only used for method "grid").}
 \item{fine_res}{Numeric, finer grid resolution for plotting the GAM-smoothed error surface.}
 
 \item{smooth_k}{Numeric, k value in mgcv::gam() for smoothing the error surface.}
+
+\item{response_levels}{Optional length-2 vector specifying the observed
+response labels corresponding to \code{stim1} and \code{stim2}. The first value is
+mapped to \code{stim1}, and the second value is mapped to \code{stim2}. For example,
+use \code{response_levels = c(0, 1)} when 0 means \code{stim1} and 1 means \code{stim2}.}
 }
 \value{
 The optimised parameter values and further convergence information.
+If \code{confint = TRUE}, the returned object also contains profile-likelihood
+confidence intervals.
 }
 \description{
 Fitting the SDT model. NB: Best results are obtained with the "DEoptim"
@@ -62,24 +96,45 @@ method and at least 1e4 trials.
 }
 \examples{
 \dontrun{
-# generating prop_agree and prop_first from pars
-sdt_df <- sdt_data(pars = c(1, 2), ntrials = 1e4)
+# Generate full double-pass data for multinomial fitting
+sdt_df <- sdt_data(
+    pars = c(1, 2),
+    method = "simulation",
+    ntrials = 200,
+    return_summary = FALSE
+    )
 
-# fitting the SDT model using bobyqa (fast method)
-sdt_fitting(data = sdt_df, ntrials = 1e4, fit_method = "bobyqa")
+# Fit with the multinomial likelihood using DEoptim
+sdt_fit <- sdt_fitting(
+    data = sdt_df,
+    method = "expectation",
+    loss = "multinomial",
+    fit_method = "DEoptim",
+    ntrials = nrow(sdt_df),
+    maxit = 200,
+    internal_noise_upper_bound = 10,
+    confint = TRUE
+    )
 
-# fitting the SDT model using DEoptim (slower but mumch more accurate)
-sdt_fit <- sdt_fitting(data = sdt_df, ntrials = 1e4, fit_method = "DEoptim")
-summary(sdt_fit)
+# Point estimates and profile-likelihood confidence intervals
+sdt_fit$confint
 
-# fitting the SDT model using the grid method (super slower but accurate)
-sdt_fitting(data = sdt_df, ntrials = 1e3, fit_method = "grid", grid_res = 0.1, smooth_grid = FALSE)
+# MSE fitting on summary proportions
+sdt_summary <- sdt_data(pars = c(1, 2), ntrials = 200)
 
-# fitting the SDT model using the grid method (super slower but accurate) + smoothing
-sdt_fitting(data = sdt_df, ntrials = 1e3, fit_method = "grid", grid_res = 0.1, smooth_grid = TRUE)
+sdt_summary_fit <- sdt_fitting(
+    data = sdt_summary,
+    method = "expectation",
+    loss = "mse",
+    fit_method = "DEoptim",
+    ntrials = 1000,
+    maxit = 200
+    )
+
+# Point estimates
+sdt_summary_fit$optim$bestmem
 }
-
 }
 \author{
-Ladislas Nalborczyk \email{ladislas.nalborczyk@gmail.com}.
+Ladislas Nalborczyk \email{ladislas.nalborczyk@cnrs.fr}.
 }

@@ -35,7 +35,7 @@ library(patchwork)
 library(tidyverse)
 library(palin)
 
-# importing some reverse correlation data (self-produced speech)
+# import some reverse correlation data (self-produced speech)
 data(self_voice)
 head(self_voice)
 #>   participant block trial response    RT  feature     value
@@ -46,7 +46,7 @@ head(self_voice)
 #> 5        01JM     1     1        0 0.298 507.6892  3.008010
 #> 6        01JM     1     1        0 0.298 684.1064  1.302738
 
-# computing the kernel via the difference method
+# compute the kernel via the difference method
 diff_kernels <- computing_kernel(data = self_voice, method = "difference")
 head(diff_kernels)
 #>   participant  feature    negative    positive kernel_gain norm_kernel_gain
@@ -57,8 +57,8 @@ head(diff_kernels)
 #> 5        01JM 507.6892  0.71696975 -0.82346385  -1.5404336       -1.9856759
 #> 6        01JM 684.1064  0.12811565  0.26302829   0.1349126        0.1739074
 
-# computing the kernel using a GLM
-glm_kernels <- computing_kernel(data = self_voice, method = "glm")
+# compute the kernel using a GLM
+glm_kernels <- computing_kernel(data = self_voice, method = "GLM")
 head(glm_kernels)
 #>        feature       kernel        lower        upper
 #> 1            0  0.006920131 -0.006040969  0.019892897
@@ -68,12 +68,12 @@ head(glm_kernels)
 #> 5 507.68921389 -0.035676451 -0.067351520 -0.004027084
 #> 6 684.10639247  0.006127961 -0.025210484  0.037477517
 
-# plotting everything (see the doc via ?plot.kernel)
+# plot everything (see the doc via ?plot.kernel)
 plot(diff_kernels, normalisation_method = "kernel_gain") +
     plot(glm_kernels, normalisation_method = "kernel_gain")
 ```
 
-<img src="man/figures/README-kernels-1.png" width="100%" />
+<img src="man/figures/README-kernels-1.png" alt="" width="100%" />
 
 ### Estimating internal noise
 
@@ -81,30 +81,41 @@ Computing response bias and internal noise from the percentage of
 agreement.
 
 ``` r
-# computing the percentage of agreement and the percentage of choosing the first
-# stimulus in the double-pass trials
-self_voice |>
-    filter(participant == unique(self_voice$participant)[1]) |>
-    response_consistency() |>
-    select(participant, double_pass_prop_agree, double_pass_prop_first) |>
-    distinct()
-#>   participant double_pass_prop_agree double_pass_prop_first
-#> 1        01JM                   0.66                   0.34
+# filter and reshape the double-pass data
+sdt_df <- self_voice |>
+    filter(participant == unique(participant)[1]) |>
+    filter(block %in% c(max(block)-1, max(block) ) ) |>
+    select(-RT, -feature, -value) |>
+    distinct() |>
+    # reshape the response variable as indicating int1 or int2
+    mutate(
+        response = if_else(
+            condition = first(response) == 0,
+            true = "stim1",
+            false = "stim2"
+            ),
+        .by = c(participant, block, trial)
+        ) |>
+    mutate(trial = 1:n(), .by = block) |>
+    pivot_wider(names_from = block, values_from = response) |>
+    rename("block1" = `4`, "block2" = `5`)
 
-# estimating internal noise for this  participant
-df <- data.frame(prop_agree = 0.66, prop_first = 0.34, ntrials = 100)
+# fit with the SDT model to double-pass responses
+sdt_fit <- sdt_fitting(
+    data = sdt_df,
+    ntrials = nrow(sdt_df)
+    )
 
-# fitting the SDT model to these data (using DEoptim and all available cores)
-# the value represents the value of the cost function (log-MSE)
-fit_results <- sdt_fitting(data = df, maxit = 100)
-summary(fit_results)
-#> 
-#> ***** summary of DEoptim object ***** 
-#> best member   :  0.66659 1.22712 
-#> best value    :  -17.24203 
-#> after         :  100 generations 
-#> fn evaluated  :  2020 times 
-#> *************************************
+# print point estimates with profile-likelihood confidence intervals
+sdt_fit$confint
+#>        parameter  estimate lower upper level hits_lower_bound hits_upper_bound
+#> 1           bias 0.6652513  0.42  1.08  0.95            FALSE            FALSE
+#> 2 internal_noise 1.2654504  0.88  2.22  0.95            FALSE            FALSE
+
+# fit with the SDT model to double-pass summarise (MSE loss function)
+# df <- data.frame(prop_agree = 0.66, prop_first = 0.485, ntrials = 100)
+# fit_results <- sdt_fitting(data = df, loss = "mse", maxit = 200)
+# summary(fit_results)
 ```
 
 ### Drift diffusion modelling
@@ -115,31 +126,31 @@ distributions of RTs (after removing the last double-pass block).
 ``` r
 library(fddm)
 
-# reshaping the data
+# reshape the data
 df <- self_voice |>
-    # keeping only the first participant
+    # keep only the first participant
     filter(participant == unique(self_voice$participant)[1]) |>
-    # removing the last double-pass block
+    # remove the last double-pass block
     filter(block < max(block) ) |>
-    # keeping only the relevant columns
+    # keep only the relevant columns
     select(participant, trial, response, RT) |>
-    # removing duplicated rows
+    # remove duplicated rows
     distinct() |>
-    # reshaping the resp variable as indicating int1 or int2
+    # reshape the resp variable as indicating int1 or int2
     mutate(
         resp = if_else(first(response) == 1, 0, 1),
         .by = c(participant, trial)
         ) |>
     distinct() |>
-    # reshaping the resp variable
+    # reshape the resp variable
     mutate(resp = factor(ifelse(test = response == 0, yes = "lower", no = "upper") ) ) |>
-    # removing extreme RTs
+    # remove extreme RTs
     filter(RT > 0.05 & RT < 2)
 
-# plotting the RT distribution
+# visualise the RT distribution
 # hist(df$RT, breaks = "FD")
 
-# fitting the full DDM (pars are a, v, t0, w, sv)
+# fit the full DDM (pars are a, v, t0, w, sv)
 # parameters are the threshold separation, drift rate, non-decision time,
 # relative starting point, and inter-trial variability of drift rate
 # verbose = 20 means that we want to print progress every 20 iterations
@@ -158,7 +169,7 @@ summary(ddm_fit)
 #> fn evaluated  :  50050 times 
 #> *************************************
 
-# comparing to the fit with ddm()
+# compare to the fit with ddm()
 fddm_fit <- fddm::ddm(
     drift = RT + resp ~ 1,
     boundary = ~ 1,
@@ -172,65 +183,70 @@ fddm_fit <- fddm::ddm(
         ),
     data = df
     )
-#> [1] "number of times we redid the initial parameters:"
-#> [1] 0
-#> t0[0] = 1.00296 >= 0.298
-#> t0[116] = 0.105336 >= 0.103
 
-# retrieving a summary
+# retrieve a summary
 fddm_fit$coefficients
 #> $drift
 #>   (Intercept) 
-#> -1.905569e-07 
+#> -1.512902e-06 
 #> 
 #> $boundary
 #> (Intercept) 
-#>    1.708898 
+#>    1.371041 
 #> 
 #> $ndt
 #> (Intercept) 
-#>   0.0150254 
+#>   0.0243788 
 #> 
 #> $bias
 #> (Intercept) 
-#>         0.5 
+#>   0.5000006 
 #> 
 #> $sv
 #> (Intercept) 
-#>    2.179575
+#>           0
 fddm_fit$loglik
-#> [1] -585.5875
+#> [1] -594.7426
 ```
 
-### Computing continous metrics of response consistency
+### Computing continuous metrics of response consistency
 
 ``` r
-# computing average consistency per participant and block
+# compute average consistency per participant and block
 consistency <- response_consistency(
     data = self_voice,
-    # method can be one of c("template_distance", "kernel_similarity", "intercept")
     method = "template_distance",
     double_pass = TRUE
     )
 
-# plotting it
+# plot it
 consistency %>%
-    pivot_longer(cols = avg_consistency:weighted_consistency) %>%
-    ggplot(aes(x = block, y = value, colour = name) ) +
-    geom_line(
-        aes(group = interaction(participant, name) ),
-        linewidth = 0.5,
-        alpha = 0.5,
-        show.legend = FALSE
+    ggplot(aes(x = block, y = avg_consistency) ) +
+    stat_summary(
+        fun.data = median_hilow,
+        # display the 50% central quantiles
+        fun.args = list(conf.int = 0.5),
+        geom = "ribbon", 
+        fill = "steelblue",
+        alpha = 0.2
         ) +
     stat_summary(
         geom = "line",
-        fun = median, linewidth = 1,
+        fun = median,
+        linewidth = 1,
+        colour = "steelblue",
         show.legend = FALSE
         ) +
-    facet_wrap(~name, ncol = 1) +
+    geom_line(
+        aes(group = participant),
+        linewidth = 0.5,
+        linetype = 2,
+        alpha = 0.5,
+        show.legend = FALSE
+        ) +
+    scale_x_continuous(breaks = seq(min(consistency$block), max(consistency$block), by = 1) ) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     labs(x = "Block number", y = "Average consistency")
 ```
 
-<img src="man/figures/README-consistency-1.png" width="100%" />
+<img src="man/figures/README-consistency-1.png" alt="" width="100%" />

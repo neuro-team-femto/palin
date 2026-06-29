@@ -30,7 +30,7 @@
 #' ddm_log_likelihood(rt = df_ppt$RT, resp = df_ppt$choice, par = c(1, 1, 0, 0.5, 0) )
 #' }
 #'
-#' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@gmail.com}.
+#' @author Ladislas Nalborczyk \email{ladislas.nalborczyk@@cnrs.fr}.
 #'
 #' @export
 

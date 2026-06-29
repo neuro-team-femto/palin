@@ -44,5 +44,5 @@ perceptions of the certainty and honesty of a speaker are associated with a
 common prosodic signature. \emph{Nature Communications 12}, 861. \url{https://doi.org/10.1038/s41467-020-20649-4}.
 }
 \author{
-Ladislas Nalborczyk \email{ladislas.nalborczyk@gmail.com}.
+Ladislas Nalborczyk \email{ladislas.nalborczyk@cnrs.fr}.
 }
