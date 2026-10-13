@@ -42,7 +42,7 @@ remotes::install_github(
 
 Below we compute kernels using various methods.
 
-```{r kernels}
+```{r kernels, fig.asp = 0.5, dev = "png", dpi = 300}
 library(patchwork)
 library(tidyverse)
 library(palin)
@@ -175,7 +175,7 @@ fddm_fit$loglik
 
 ### Computing continuous metrics of response consistency
 
-```{r consistency}
+```{r consistency, fig.asp = 0.5, dev = "png", dpi = 300}
 # compute average consistency per participant and block
 consistency <- response_consistency(
     data = self_voice,

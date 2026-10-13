@@ -1,0 +1,46 @@
+name: pkgdown
+
+on:
+  push:
+    branches: [main, updating-palin-r]
+    paths:
+      - "r/**"
+      - ".github/workflows/pkgdown.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pkgdown:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: r
+          extra-packages: any::pkgdown
+          needs: website
+
+      - name: Build website
+        run: |
+          Rscript -e 'pkgdown::build_site(pkg = "r", new_process = FALSE)'
+
+      - name: Deploy website
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: r/docs
+          clean: true
