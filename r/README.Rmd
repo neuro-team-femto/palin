@@ -75,7 +75,7 @@ sdt_df <- self_voice |>
     filter(block %in% c(max(block)-1, max(block) ) ) |>
     select(-RT, -feature, -value) |>
     distinct() |>
-    # reshape the response variable as indicating int1 or int2
+    # reshape the response variable as indicating stim1 or stim2
     mutate(
         response = if_else(
             condition = first(response) == 0,
@@ -91,16 +91,23 @@ sdt_df <- self_voice |>
 # fit with the SDT model to double-pass responses
 sdt_fit <- sdt_fitting(
     data = sdt_df,
-    ntrials = nrow(sdt_df)
+    ntrials = nrow(sdt_df),
+    loss = "multinomial",
+    fit_method = "nlminb"
     )
 
 # print point estimates with profile-likelihood confidence intervals
 sdt_fit$confint
 
-# fit with the SDT model to double-pass summarise (MSE loss function)
-# df <- data.frame(prop_agree = 0.66, prop_first = 0.485, ntrials = 100)
-# fit_results <- sdt_fitting(data = df, loss = "mse", maxit = 200)
-# summary(fit_results)
+# fit with the SDT model to double-pass summaries (MSE loss function)
+df <- data.frame(
+    prop_agree = mean(sdt_df$block1 == sdt_df$block2),
+    prop_first = mean(c(sdt_df$block1 == "stim1", sdt_df$block2 == "stim1") ),
+    ntrials = 100
+    )
+
+fit_results <- sdt_fitting(data = df, loss = "mse", maxit = 100)
+summary(fit_results)
 ```
 
 ### Drift diffusion modelling
@@ -172,13 +179,14 @@ fddm_fit$loglik
 # compute average consistency per participant and block
 consistency <- response_consistency(
     data = self_voice,
-    method = "template_distance",
-    double_pass = TRUE
+    method = "calibrated_template",
+    double_pass = TRUE,
+    return_by = "block"
     )
 
 # plot it
 consistency %>%
-    ggplot(aes(x = block, y = avg_consistency) ) +
+    ggplot(aes(x = block, y = calibrated_prop_agree) ) +
     stat_summary(
         fun.data = median_hilow,
         # display the 50% central quantiles
@@ -201,7 +209,9 @@ consistency %>%
         alpha = 0.5,
         show.legend = FALSE
         ) +
-    scale_x_continuous(breaks = seq(min(consistency$block), max(consistency$block), by = 1) ) +
+    scale_x_continuous(
+        breaks = seq(min(consistency$block), max(consistency$block), by = 1)
+        ) +
     theme_bw(base_size = 12, base_family = "Open Sans") +
     labs(x = "Block number", y = "Average consistency")
 ```

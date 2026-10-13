@@ -1,3 +1,9 @@
+# palin 0.0.8
+
+* Cleaning the `sdt_fitting()` code and allowing a new fitting method (`L-BFGS-B`).
+* New (and better) "calibrated" methods for estimating response consistency.
+* Allowing to return consistency metrics either per block or for all blocks.
+
 # palin 0.0.7
 
 * Allowing the user to change the upper bound on internal noise during estimation (see `?sdt_fitting()`).

@@ -12,9 +12,11 @@ response_consistency(
   feature_id = "feature",
   value_id = "value",
   response_id = "response",
-  method = c("template_distance", "kernel_similarity", "intercept"),
+  method = c("calibrated_template", "calibrated_kernel", "full_glm", "intercept",
+    "template_distance", "kernel_similarity"),
   double_pass = TRUE,
-  link_function = c("logit", "probit")
+  link_function = c("logit", "probit"),
+  return_by = c("all", "block")
 )
 }
 \arguments{
@@ -32,11 +34,19 @@ response_consistency(
 
 \item{response_id}{Numeric, column in data specifying the response (should be in the 0/1 format).}
 
-\item{method}{Character, which consistency method to use.}
+\item{method}{Character, which consistency method to use. Options are
+\code{"template_distance"}, \code{"kernel_similarity"}, \code{"intercept"},
+\code{"calibrated_kernel"}, \code{"calibrated_template"}, and \code{"full_glm"}.
+The calibrated methods estimate trial-wise response probabilities and
+convert them into expected double-pass agreement.}
 
 \item{double_pass}{Logical, indicating whether the last block was repeated.}
 
 \item{link_function}{Character, which binomial GLM link function to use in the "intercept" method (see ?binomial).}
+
+\item{return_by}{Character. Should metrics be returned per participant and
+block (\code{"block"}) or pooled across all eligible blocks per participant
+(\code{"all"})? Defaults to \code{"all"}.}
 }
 \value{
 Dataframe, various metrics of response consistency.
@@ -47,15 +57,21 @@ and non double-pass reverse correlation data.
 }
 \examples{
 \dontrun{
-# importing the self-voice data
+# import the self-voice data
 data(self_voice)
 head(self_voice)
 
-# computing metrics of response consistency per participant and per block
+# compute response consistency per participant
 response_consistency(self_voice, method = "template_distance") |> head(10)
 response_consistency(self_voice, method = "kernel_similarity") |> head(10)
 response_consistency(self_voice, method = "intercept") |> head(10)
 response_consistency(self_voice, method = "intercept", link_function = "probit") |> head(10)
+response_consistency(self_voice, method = "calibrated_kernel")
+response_consistency(self_voice, method = "calibrated_template")
+response_consistency(self_voice, method = "full_glm")
+
+# compute response consistency per participant and block
+response_consistency(self_voice, method = "full_glm", return_by = "block")
 }
 
 }

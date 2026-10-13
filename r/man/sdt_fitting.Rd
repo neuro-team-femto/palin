@@ -10,7 +10,7 @@ sdt_fitting(
   ntrials = 10000,
   log_mse = TRUE,
   loss = c("multinomial", "mse"),
-  fit_method = c("DEoptim", "nlminb", "SANN", "Nelder-Mead", "CG", "BFGS", "bobyqa",
+  fit_method = c("DEoptim", "nlminb", "Nelder-Mead", "CG", "BFGS", "L-BFGS-B", "bobyqa",
     "grid"),
   cluster = NULL,
   grid_res = 0.05,

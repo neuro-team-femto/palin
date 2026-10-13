@@ -433,17 +433,16 @@ plot.kernel <- function (
             ) +
         ggplot2::geom_hline(yintercept = 0, linetype = 2) +
         # plotting each participant's filter
-        ggplot2::geom_line(size = 0.5, alpha = 0.3, show.legend = FALSE) +
+        ggplot2::geom_line(linewidth = 0.5, alpha = 0.3, show.legend = FALSE) +
         # plotting the average filter
         ggplot2::stat_summary(
             ggplot2::aes(x = .data$feature, y = .data[[normalisation_method]]),
             geom = "line",
             fun = mean,
-            size = 1,
+            linewidth = 1,
             inherit.aes = FALSE
             ) +
         # aesthetics
-        # ggplot2::theme_bw(base_family = "Open Sans", base_size = 12) +
         ggplot2::theme_bw() +
         ggplot2::scale_colour_manual(
             values = MetBrewer::met.brewer(

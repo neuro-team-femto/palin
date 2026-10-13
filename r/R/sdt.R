@@ -87,15 +87,21 @@ sdt_data <- function (pars, return_summary = TRUE, method = c("simulation", "exp
         }
 
         # predicted probability (percentage) of choosing the first stimulus
-        prop_first <- sum(simulated_df == "stim1") / (ntrials * 2)
+        # prop_first <- sum(simulated_df == "stim1") / (ntrials * 2)
+        prop_first <- mean(c(simulated_df$block1, simulated_df$block2) == "stim1")
 
         # predicted percentage of agreement
-        prop_agree <- sum(simulated_df$block1 == simulated_df$block2) / ntrials
+        # prop_agree <- sum(simulated_df$block1 == simulated_df$block2) / ntrials
+        prop_agree <- mean(simulated_df$block1 == simulated_df$block2)
 
     } else if (method == "expectation") {
 
         # computing the probability of choosing the first interval
-        prop_first <- 1 - stats::pnorm(bias / sqrt(1 + noise^2) )
+        # prop_first <- 1 - stats::pnorm(bias / sqrt(1 + noise^2) )
+
+        # probability of choosing stim1 under the decision rule:
+        # stim2 if s_i + sigma_ir > bias, otherwise stim1
+        prop_first <- stats::pnorm(bias / sqrt(1 + noise^2) )
 
         # computing the probability of agreement, which is a sum of
         # two conditional probabilities: p(both_stim1 | s_i) + p(both_stim2 | s_i)
@@ -110,8 +116,11 @@ sdt_data <- function (pars, return_summary = TRUE, method = c("simulation", "exp
             # defining a function to compute agreement probability for a given s
             integrand <- function (s) {
 
-                term <- stats::pnorm((s - bias) / noise)
-                term_sq <- term^2 + (1 - term)^2
+                # term <- stats::pnorm((s - bias) / noise)
+                # term_sq <- term^2 + (1 - term)^2
+                p_stim2_given_s <- stats::pnorm((s - bias) / noise)
+                p_stim1_given_s <- 1 - p_stim2_given_s
+                term_sq <- p_stim1_given_s^2 + p_stim2_given_s^2
 
                 # multiplying by N(0,1) density and returning the value
                 return (term_sq * stats::dnorm(s) )
@@ -360,52 +369,79 @@ sdt_multinom_probs <- function (
         probs <- sdt_multinom_counts(sim_data)
         probs <- probs / sum(probs)
 
+    # } else if (method == "expectation") {
+    #
+    #     if (noise < sqrt(.Machine$double.eps) ) {
+    #
+    #         # Deterministic repeated choices when internal noise is 0.
+    #         # Decision rule in sdt_data():
+    #         # stim2 if s_i + sigma_ir > bias, otherwise stim1.
+    #         p11 <- stats::pnorm(bias)
+    #         p22 <- 1 - stats::pnorm(bias)
+    #         p12 <- 0
+    #         p21 <- 0
+    #
+    #     } else {
+    #
+    #         # Conditional probability of choosing stim2 for a given latent s.
+    #         p_stim2_given_s <- function (s) {
+    #
+    #             stats::pnorm((s - bias) / noise)
+    #
+    #         }
+    #
+    #         integrate_over_s <- function (fun) {
+    #             stats::integrate(
+    #                 f = function (s) fun(s) * stats::dnorm(s),
+    #                 lower = -Inf,
+    #                 upper = +Inf,
+    #                 subdivisions = 200L,
+    #                 rel.tol = .Machine$double.eps^0.25
+    #                 )$value
+    #         }
+    #
+    #         # P(stim1 in block1, stim1 in block2)
+    #         p11 <- integrate_over_s(
+    #             function (s) (1 - p_stim2_given_s(s) )^2
+    #             )
+    #
+    #         # P(stim2 in block1, stim2 in block2)
+    #         p22 <- integrate_over_s(
+    #             function (s) p_stim2_given_s(s)^2
+    #             )
+    #
+    #         # Off-diagonal cells are symmetric under the current model.
+    #         p12 <- (1 - p11 - p22) / 2
+    #         p21 <- p12
+    #
+    #     }
+    #
+    #     probs <- c(
+    #         stim1_stim1 = p11,
+    #         stim1_stim2 = p12,
+    #         stim2_stim1 = p21,
+    #         stim2_stim2 = p22
+    #         )
+    #
+    # }
+
     } else if (method == "expectation") {
 
-        if (noise < sqrt(.Machine$double.eps) ) {
+        rho <- 1 / (1 + noise^2)
+        a <- bias / sqrt(1 + noise^2)
 
-            # Deterministic repeated choices when internal noise is 0.
-            # Decision rule in sdt_data():
-            # stim2 if s_i + sigma_ir > bias, otherwise stim1.
-            p11 <- stats::pnorm(bias)
-            p22 <- 1 - stats::pnorm(bias)
-            p12 <- 0
-            p21 <- 0
+        p11 <- mvtnorm::pmvnorm(
+            lower = c(-Inf, -Inf),
+            upper = c(a, a),
+            corr = matrix(c(1, rho, rho, 1), nrow = 2)
+            )
 
-        } else {
+        p11 <- as.numeric(p11)
+        p_stim1 <- stats::pnorm(a)
 
-            # Conditional probability of choosing stim2 for a given latent s.
-            p_stim2_given_s <- function (s) {
-
-                stats::pnorm((s - bias) / noise)
-
-            }
-
-            integrate_over_s <- function (fun) {
-                stats::integrate(
-                    f = function (s) fun(s) * stats::dnorm(s),
-                    lower = -Inf,
-                    upper = +Inf,
-                    subdivisions = 200L,
-                    rel.tol = .Machine$double.eps^0.25
-                    )$value
-            }
-
-            # P(stim1 in block1, stim1 in block2)
-            p11 <- integrate_over_s(
-                function (s) (1 - p_stim2_given_s(s) )^2
-                )
-
-            # P(stim2 in block1, stim2 in block2)
-            p22 <- integrate_over_s(
-                function (s) p_stim2_given_s(s)^2
-                )
-
-            # Off-diagonal cells are symmetric under the current model.
-            p12 <- (1 - p11 - p22) / 2
-            p21 <- p12
-
-        }
+        p12 <- p_stim1 - p11
+        p21 <- p12
+        p22 <- 1 - 2 * p_stim1 + p11
 
         probs <- c(
             stim1_stim1 = p11,
@@ -574,7 +610,7 @@ sdt_fitting <- function (
         ntrials = 1e4,
         log_mse = TRUE,
         loss = c("multinomial", "mse"),
-        fit_method = c("DEoptim", "nlminb", "SANN", "Nelder-Mead", "CG", "BFGS", "bobyqa", "grid"),
+        fit_method = c("DEoptim", "nlminb", "Nelder-Mead", "CG", "BFGS", "L-BFGS-B", "bobyqa", "grid"),
         cluster = NULL,
         grid_res = 0.05,
         maxit = 100,
@@ -611,7 +647,7 @@ sdt_fitting <- function (
 
     if (isTRUE(confint) && loss != "multinomial") {
 
-        warning(
+        warning (
             "confint = TRUE is only available when loss = 'multinomial'. ",
             "Setting confint = FALSE."
             )
@@ -619,12 +655,6 @@ sdt_fitting <- function (
         confint <- FALSE
 
     }
-
-    # loss_fun <- switch (
-    #     loss,
-    #     mse = sdt_loss,
-    #     multinomial = sdt_multinom_loss
-    #     )
 
     loss_fun <- switch (
         loss,
@@ -666,7 +696,7 @@ sdt_fitting <- function (
 
             pars_hat <- as.numeric(fit$par)
 
-        } else if (fit_method == "SANN") {
+        } else if (fit_method == "L-BFGS-B") {
 
             pars_hat <- as.numeric(fit$par)
 
@@ -773,6 +803,18 @@ sdt_fitting <- function (
 
     }
 
+    objective_fun <- function (pars, ...) {
+
+        loss_fun(
+            pars = pars,
+            data = data,
+            method = method,
+            ntrials = ntrials,
+            log_mse = log_mse
+            )
+
+    }
+
     if (fit_method == "DEoptim") {
 
         # starting the optimisation
@@ -831,35 +873,27 @@ sdt_fitting <- function (
     } else if (fit_method == "nlminb") {
 
         fit <- stats::nlminb(
-            start = c(0, 1),
-            objective = loss_fun,
-            data = data,
-            method = method,
-            ntrials = ntrials,
-            log_mse = log_mse,
+            start = c(bias = 0, noise = 1),
+            objective = objective_fun,
             lower = c(-5, 0),
             upper = c(+5, internal_noise_upper_bound)
             )
 
-    } else if (fit_method == "SANN") {
+    } else if (fit_method == "L-BFGS-B") {
 
         fit <- stats::optim(
             par = c(bias = 0, noise = 1),
-            fn = loss_fun,
-            data = data,
-            ntrials = ntrials,
-            log_mse = log_mse,
-            method = fit_method
+            fn = objective_fun,
+            method = fit_method,
+            lower = c(-5, 0),
+            upper = c(+5, internal_noise_upper_bound)
             )
 
     } else if (fit_method %in% c("Nelder-Mead", "CG", "BFGS", "bobyqa") ) {
 
         fit <- optimx::optimx(
             par = c(bias = 0, noise = 1),
-            fn = loss_fun,
-            data = data,
-            ntrials = ntrials,
-            log_mse = log_mse,
+            fn = objective_fun,
             method = fit_method
             )
 
@@ -876,7 +910,7 @@ sdt_fitting <- function (
             )
 
         # warning the user about the number of simulation to evaluate...
-        message(
+        message (
             paste(
                 "palin will now explore",
                 nrow(param_grid),

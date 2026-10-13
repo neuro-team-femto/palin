@@ -1,7 +1,7 @@
 Package: palin
 Title: Utility functions for analysing reverse correlation data
-Version: 0.0.7
-Date: 2026-06-29
+Version: 0.0.8
+Date: 2026-10-13
 Authors@R:
     c(
     person(
@@ -20,13 +20,12 @@ Authors@R:
     role = c("ctb"),
     email = "aucouturier@gmail.com"
     ) )
-Description: Providing utility functions for analysing reverse correlation data,
-    computing individual- and group-level kernels, computing response consistency,
-    estimating internal noise, etc.
+Description: Tools for analysing reverse correlation data, computing individual-
+    and group-level kernels, computing response consistency, estimating internal
+    noise, etc.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Imports:
     assertthat,
     brms,
@@ -45,8 +44,11 @@ Imports:
     scales,
     tibble,
     tidyr,
-    tidyselect
+    mvtnorm,
+    tidyselect,
+    purrr
 Depends: 
     R (>= 4.2.0)
 LazyData: true
 LazyDataCompression: xz
+Config/roxygen2/version: 8.0.0
